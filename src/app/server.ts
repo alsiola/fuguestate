@@ -132,7 +132,7 @@ app.post("/trigger/sleep", async (_req, reply) => {
   const quests = getUndeliveredQuests();
   return reply.send({
     dreams: dreams.map((d) => ({ title: d.title, narrative: d.narrative_markdown, actions: JSON.parse(d.actions_taken_json) })),
-    quests: quests.map((q) => ({ narrative: q.narrative_markdown, principles: JSON.parse(q.guiding_principles_json), insights: JSON.parse(q.insights_json) })),
+    quests: quests.map((q) => ({ narrative: q.narrative_markdown, principles: JSON.parse(q.guiding_principles_json), insights: JSON.parse(q.insights_json), drug_used: q.drug_used, style_used: q.style_used })),
   });
 });
 
@@ -147,7 +147,7 @@ app.post("/trigger/spirit-quest", async (req, reply) => {
   const quests = getUndeliveredQuests();
   return reply.send({
     dreams: dreams.map((d) => ({ title: d.title, narrative: d.narrative_markdown, actions: JSON.parse(d.actions_taken_json) })),
-    quests: quests.map((q) => ({ narrative: q.narrative_markdown, principles: JSON.parse(q.guiding_principles_json), insights: JSON.parse(q.insights_json) })),
+    quests: quests.map((q) => ({ narrative: q.narrative_markdown, principles: JSON.parse(q.guiding_principles_json), insights: JSON.parse(q.insights_json), drug_used: q.drug_used, style_used: q.style_used })),
   });
 });
 
