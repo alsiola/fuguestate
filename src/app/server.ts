@@ -136,10 +136,12 @@ app.post("/trigger/sleep", async (_req, reply) => {
   });
 });
 
-app.post("/trigger/spirit-quest", async (_req, reply) => {
+app.post("/trigger/spirit-quest", async (req, reply) => {
   const { runDream, runSpiritQuest } = await import("../workers/dream.js");
+  const body = req.body as { style?: string } | undefined;
+  const styleOverride = body?.style || undefined;
   await runDream();
-  await runSpiritQuest();
+  await runSpiritQuest(styleOverride);
   const { getUndeliveredDreams, getUndeliveredQuests } = await import("../workers/dream.js");
   const dreams = getUndeliveredDreams();
   const quests = getUndeliveredQuests();

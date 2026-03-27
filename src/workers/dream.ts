@@ -323,7 +323,7 @@ export function markDreamsDelivered(ids: string[]): void {
 
 // ---- Spirit Quest ----
 
-export async function runSpiritQuest(): Promise<void> {
+export async function runSpiritQuest(styleOverride?: string): Promise<void> {
   const beliefs = getActiveBeliefs(undefined, undefined, 100);
   if (beliefs.length < 2) {
     logger.info("Not enough beliefs for a spirit quest — coming down early");
@@ -338,7 +338,7 @@ export async function runSpiritQuest(): Promise<void> {
 
   // Phase 1: The trip — extract principles, rewrite beliefs, find consolidations
   logger.info({ beliefCount: beliefs.length }, "Spirit quest: the visions begin...");
-  const vision = await spiritQuestVision(beliefInputs);
+  const vision = await spiritQuestVision(beliefInputs, styleOverride);
   if (!vision) {
     logger.warn("Spirit quest: no visions received — bad batch?");
     return;

@@ -670,14 +670,18 @@ const SPIRIT_QUEST_VISION_SCHEMA = {
 };
 
 export async function spiritQuestVision(
-  beliefs: Array<{ id: string; proposition: string; confidence: number }>
+  beliefs: Array<{ id: string; proposition: string; confidence: number }>,
+  styleOverride?: string
 ): Promise<(SpiritQuestVision & { styleUsed: string | null }) | null> {
   const { loadConfig } = await import("./config.js");
   const { inStyle } = loadConfig();
 
   let chosenStyle: string | null = null;
   let styleDirective = "";
-  if (inStyle) {
+  if (styleOverride) {
+    chosenStyle = styleOverride;
+    styleDirective = `\n\nIMPORTANT: Write your narrative in the style of ${chosenStyle}. Channel their voice, tone, sentence structure, and literary sensibility throughout the spirit quest narrative. The analytical work (principles, rewrites, consolidations) should remain precise and clear, but the narrative itself should unmistakably evoke ${chosenStyle}.\n`;
+  } else if (inStyle) {
     const styles = inStyle.split(",").map((s) => s.trim()).filter(Boolean);
     chosenStyle = styles[Math.floor(Math.random() * styles.length)];
     styleDirective = `\n\nIMPORTANT: Write your narrative in the style of ${chosenStyle}. Channel their voice, tone, sentence structure, and literary sensibility throughout the spirit quest narrative. The analytical work (principles, rewrites, consolidations) should remain precise and clear, but the narrative itself should unmistakably evoke ${chosenStyle}.\n`;

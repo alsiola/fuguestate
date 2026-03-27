@@ -213,12 +213,73 @@ export function SpiritQuestDetailPage() {
                 <p className="text-sm text-muted-foreground mb-4">
                   These insights were generated during the quest but failed the sobriety check.
                 </p>
-                <div className="space-y-3">
-                  {hallucinations.map((h, i) => (
-                    <div key={i} className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
-                      <p className="text-sm line-through opacity-70">{typeof h === "string" ? h : JSON.stringify(h)}</p>
-                    </div>
-                  ))}
+                <div className="space-y-6">
+                  {hallucinations.map((h, i) => {
+                    const text = typeof h === "string" ? h : JSON.stringify(h);
+                    // Parse "Rejected rewrite: "before" → "after" (reason)" pattern
+                    const rewriteMatch = text.match(/^Rejected rewrite:\s*"(.+?)"\s*→\s*"(.+?)"\s*\((.+)\)$/s);
+                    // Parse "Rejected consolidation: "a" + "b" + ... → "merged" (reason)" pattern
+                    const consolidationMatch = !rewriteMatch && text.match(/^Rejected consolidation:\s*(.+?)\s*→\s*"(.+?)"\s*\((.+)\)$/s);
+
+                    if (rewriteMatch) {
+                      return (
+                        <div key={i} className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="retired">rejected</Badge>
+                            <span className="text-xs text-muted-foreground">{rewriteMatch[3]}</span>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/30 border border-muted">
+                            <p className="text-xs text-muted-foreground font-medium mb-1">Before</p>
+                            <p className="text-sm">{rewriteMatch[1]}</p>
+                          </div>
+                          <div className="flex justify-center">
+                            <span className="text-muted-foreground">↓</span>
+                          </div>
+                          <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
+                            <p className="text-xs text-red-400 font-medium mb-1">Proposed</p>
+                            <p className="text-sm opacity-70">{rewriteMatch[2]}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (consolidationMatch) {
+                      // Parse the source beliefs: "a" + "b" + "c"
+                      const sources = consolidationMatch[1].match(/"[^"]+"/g)?.map(s => s.slice(1, -1)) || [consolidationMatch[1]];
+                      return (
+                        <div key={i} className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="retired">rejected</Badge>
+                            <span className="text-xs text-muted-foreground">{consolidationMatch[3]}</span>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/30 border border-muted">
+                            <p className="text-xs text-muted-foreground font-medium mb-1">Sources ({sources.length} beliefs)</p>
+                            <div className="space-y-2 mt-1">
+                              {sources.map((s, j) => (
+                                <p key={j} className="text-sm pl-2 border-l-2 border-muted-foreground/20">{s}</p>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex justify-center">
+                            <span className="text-muted-foreground">↓</span>
+                          </div>
+                          <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
+                            <p className="text-xs text-red-400 font-medium mb-1">Proposed Consolidation</p>
+                            <p className="text-sm opacity-70">{consolidationMatch[2]}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={i} className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="retired">rejected</Badge>
+                        </div>
+                        <p className="text-sm opacity-70">{text}</p>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
