@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { AgentEgo } from "./AgentEgo";
 
 const navItems = [
   { to: "", label: "Dashboard", icon: "🧠" },
@@ -41,7 +42,10 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
-        <div className="p-4 border-t text-xs text-muted-foreground">
+        <div className="p-4 border-t">
+          <AgentEgo />
+        </div>
+        <div className="px-4 pb-3 text-[10px] text-muted-foreground/50">
           fuguestate v1.0
         </div>
       </aside>

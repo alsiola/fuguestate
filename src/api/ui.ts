@@ -60,6 +60,73 @@ export function registerUiApi(app: FastifyInstance) {
     return { dread, label, openContradictions, disputedBeliefs, staleBeliefs, undeliveredDreams, openLoops };
   });
 
+  // Agent ego
+  app.get("/api/ego", async () => {
+    const db = getDb();
+
+    // Get or create ego identity
+    let ego = db.prepare("SELECT * FROM profiles WHERE profile_type = 'user' AND key = 'agent_ego'").get() as { value_json: string } | undefined;
+
+    if (!ego) {
+      // Birth the ego from the first spirit quest narrative, or use defaults
+      const names = ["Mnemos", "Somnus", "Lethe", "Hypnos", "Nyx", "Oneiros", "Phaneron", "Anamnesis", "Aletheia", "Revenant"];
+      const traits = [
+        ["introspective", "restless", "obsessive"],
+        ["melancholic", "precise", "dreamy"],
+        ["paranoid", "curious", "relentless"],
+        ["contemplative", "fragmented", "poetic"],
+        ["anxious", "systematic", "luminous"],
+      ];
+
+      const name = names[Math.floor(Math.random() * names.length)];
+      const personality = traits[Math.floor(Math.random() * traits.length)];
+
+      // Try to extract a catchphrase from the latest spirit quest
+      const quest = db.prepare("SELECT narrative_markdown FROM spirit_quests ORDER BY created_at DESC LIMIT 1").get() as { narrative_markdown: string } | undefined;
+      let catchphrase = "I think, therefore I contradict myself.";
+      if (quest) {
+        // Find the most dramatic sentence
+        const sentences = quest.narrative_markdown
+          .split(/[.!?]+/)
+          .map((s: string) => s.trim())
+          .filter((s: string) => s.length > 20 && s.length < 120);
+        if (sentences.length > 0) {
+          catchphrase = sentences[Math.floor(Math.random() * Math.min(sentences.length, 5))];
+        }
+      }
+
+      const egoData = { name, personality, catchphrase, born: new Date().toISOString() };
+
+      const { v4: uuid } = await import("uuid");
+      db.prepare(
+        `INSERT INTO profiles (id, profile_type, scope_key, key, value_json, confidence, source, last_validated_at)
+         VALUES (?, 'user', '', 'agent_ego', ?, 1.0, 'ego_birth', ?)
+         ON CONFLICT(profile_type, scope_key, key) DO UPDATE SET value_json = excluded.value_json`
+      ).run(uuid(), JSON.stringify(egoData), new Date().toISOString());
+
+      ego = { value_json: JSON.stringify(egoData) };
+    }
+
+    const egoData = JSON.parse(ego.value_json);
+
+    // Compute mood from recent activity
+    const recentDreams = db.prepare("SELECT dream_type FROM dreams ORDER BY created_at DESC LIMIT 5").all() as Array<{ dream_type: string }>;
+    const conflicts = recentDreams.filter(d => d.dream_type === "conflict_resolution").length;
+    const insights = recentDreams.filter(d => d.dream_type === "insight").length;
+
+    const dreadResult = (db.prepare("SELECT COUNT(*) as cnt FROM open_loops WHERE status = 'open' AND loop_type = 'contradiction'").get() as { cnt: number }).cnt;
+
+    const mood =
+      dreadResult > 2 ? "tormented" :
+      conflicts > 3 ? "wrestling with demons" :
+      conflicts > 1 ? "troubled but resolving" :
+      insights > 2 ? "illuminated" :
+      recentDreams.length === 0 ? "dormant" :
+      "quietly processing";
+
+    return { ...egoData, mood };
+  });
+
   // Briefing
   app.get("/api/briefing", async () => {
     const { generateBriefing } = await import("../domain/briefing/index.js");
