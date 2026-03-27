@@ -22,7 +22,9 @@ export function registerUiApi(app: FastifyInstance) {
     const dreams = (db.prepare("SELECT COUNT(*) as cnt FROM dreams").get() as { cnt: number }).cnt;
     const quests = (db.prepare("SELECT COUNT(*) as cnt FROM spirit_quests").get() as { cnt: number }).cnt;
     const procedures = (db.prepare("SELECT COUNT(*) as cnt FROM procedures").get() as { cnt: number }).cnt;
-    return { events, episodes, beliefs, openLoops, dreams, quests, procedures, uptime: process.uptime() };
+    const undeliveredDreams = (db.prepare("SELECT COUNT(*) as cnt FROM dreams WHERE delivered_at IS NULL").get() as { cnt: number }).cnt;
+    const undeliveredQuests = (db.prepare("SELECT COUNT(*) as cnt FROM spirit_quests WHERE delivered_at IS NULL").get() as { cnt: number }).cnt;
+    return { events, episodes, beliefs, openLoops, dreams, quests, procedures, undeliveredDreams, undeliveredQuests, uptime: process.uptime() };
   });
 
   // Briefing

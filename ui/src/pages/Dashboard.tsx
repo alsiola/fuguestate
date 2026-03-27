@@ -45,7 +45,15 @@ export function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">{s.label}</p>
-                    <p className="text-3xl font-bold mt-1">{stats.data?.[s.key] ?? 0}</p>
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-3xl font-bold mt-1">{stats.data?.[s.key] ?? 0}</p>
+                      {s.key === "dreams" && (stats.data?.undeliveredDreams ?? 0) > 0 && (
+                        <span className="text-xs text-purple-400 animate-pulse">{stats.data?.undeliveredDreams} new</span>
+                      )}
+                      {s.key === "quests" && (stats.data?.undeliveredQuests ?? 0) > 0 && (
+                        <span className="text-xs text-amber-400 animate-pulse">{stats.data?.undeliveredQuests} new</span>
+                      )}
+                    </div>
                   </div>
                   <span className="text-3xl opacity-60">{s.icon}</span>
                 </div>

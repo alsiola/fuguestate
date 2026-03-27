@@ -39,12 +39,13 @@ export function SpiritQuestsPage() {
 
             return (
               <Link key={quest.id} to={quest.id}>
-                <Card className="hover:border-amber-500/30 transition-all hover:quest-glow cursor-pointer group">
+                <Card className={`hover:border-amber-500/30 transition-all hover:quest-glow cursor-pointer group ${!quest.delivered_at ? "border-amber-500/20 quest-glow" : ""}`}>
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
                         <Badge variant="quest">Spirit Quest</Badge>
                         {quest.style_used && <Badge variant="secondary">{quest.style_used}</Badge>}
+                        {!quest.delivered_at && <Badge variant="default" className="animate-pulse bg-amber-500/80">new</Badge>}
                       </div>
                       <span className="text-xs text-muted-foreground">{timeAgo(quest.created_at)}</span>
                     </div>

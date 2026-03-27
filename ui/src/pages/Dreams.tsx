@@ -38,12 +38,12 @@ export function DreamsPage() {
             const actions = JSON.parse(dream.actions_taken_json);
             return (
               <Link key={dream.id} to={dream.id}>
-                <Card className="hover:border-purple-500/30 transition-all hover:quest-glow cursor-pointer group">
+                <Card className={`hover:border-purple-500/30 transition-all hover:quest-glow cursor-pointer group ${!dream.delivered_at ? "border-purple-500/20 quest-glow" : ""}`}>
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <Badge variant="dream">{dreamTypeLabels[dream.dream_type] ?? dream.dream_type}</Badge>
-                        {dream.delivered_at && <Badge variant="secondary">delivered</Badge>}
+                        {!dream.delivered_at && <Badge variant="default" className="animate-pulse bg-purple-500/80">new</Badge>}
                       </div>
                       <span className="text-xs text-muted-foreground">{timeAgo(dream.created_at)}</span>
                     </div>

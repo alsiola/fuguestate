@@ -75,6 +75,8 @@ export interface Stats {
   dreams: number;
   quests: number;
   procedures: number;
+  undeliveredDreams: number;
+  undeliveredQuests: number;
   uptime: number;
 }
 
