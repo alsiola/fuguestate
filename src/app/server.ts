@@ -91,6 +91,32 @@ app.post("/hooks/stop-failure", async (req, reply) => reply.send({}));
 // MCP routes
 registerMcpRoutes(app);
 
+// Manual trigger endpoints
+app.post("/trigger/sleep", async (_req, reply) => {
+  const { runDream } = await import("../workers/dream.js");
+  await runDream();
+  const { getUndeliveredDreams, getUndeliveredQuests } = await import("../workers/dream.js");
+  const dreams = getUndeliveredDreams();
+  const quests = getUndeliveredQuests();
+  return reply.send({
+    dreams: dreams.map((d) => ({ title: d.title, narrative: d.narrative_markdown, actions: JSON.parse(d.actions_taken_json) })),
+    quests: quests.map((q) => ({ narrative: q.narrative_markdown, principles: JSON.parse(q.guiding_principles_json), insights: JSON.parse(q.insights_json) })),
+  });
+});
+
+app.post("/trigger/spirit-quest", async (_req, reply) => {
+  const { runDream, runSpiritQuest } = await import("../workers/dream.js");
+  await runDream();
+  await runSpiritQuest();
+  const { getUndeliveredDreams, getUndeliveredQuests } = await import("../workers/dream.js");
+  const dreams = getUndeliveredDreams();
+  const quests = getUndeliveredQuests();
+  return reply.send({
+    dreams: dreams.map((d) => ({ title: d.title, narrative: d.narrative_markdown, actions: JSON.parse(d.actions_taken_json) })),
+    quests: quests.map((q) => ({ narrative: q.narrative_markdown, principles: JSON.parse(q.guiding_principles_json), insights: JSON.parse(q.insights_json) })),
+  });
+});
+
 // Start background workers
 let consolidationTimer: NodeJS.Timeout;
 let synthesisTimer: NodeJS.Timeout;

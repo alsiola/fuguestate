@@ -276,7 +276,7 @@ export function markDreamsDelivered(ids: string[]): void {
 
 // ---- Spirit Quest ----
 
-async function runSpiritQuest(): Promise<void> {
+export async function runSpiritQuest(): Promise<void> {
   const beliefs = getActiveBeliefs(undefined, undefined, 100);
   if (beliefs.length < 2) {
     logger.info("Not enough beliefs for a spirit quest — coming down early");
