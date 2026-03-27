@@ -216,17 +216,19 @@ async function findRediscoveredPatterns(): Promise<void> {
   const clusters = await clusterEpisodeTitles(titles);
 
   if (clusters) {
+    // Don't create more recurring pattern loops if we already have open ones
+    const existingPatternLoops = db
+      .prepare("SELECT COUNT(*) as cnt FROM open_loops WHERE status = 'open' AND loop_type = 'todo' AND title LIKE '%Recurring pattern%'")
+      .get() as { cnt: number };
+    if (existingPatternLoops.cnt >= 3) return;
+
     for (const cluster of clusters.clusters) {
       if (cluster.count < 3) continue;
 
-      const existing = db
-        .prepare("SELECT id FROM open_loops WHERE status = 'open' AND loop_type = 'todo' AND title LIKE ? LIMIT 1")
-        .get(`%Recurring pattern%`) as { id: string } | undefined;
-
       // Check if we already have a loop for a similar pattern
       const existingForCluster = db
-        .prepare("SELECT id FROM open_loops WHERE status = 'open' AND description LIKE ? LIMIT 1")
-        .get(`%${cluster.representative_title.slice(0, 40)}%`) as { id: string } | undefined;
+        .prepare("SELECT id FROM open_loops WHERE status = 'open' AND loop_type = 'todo' AND title LIKE ? LIMIT 1")
+        .get(`%Recurring pattern%${cluster.representative_title.slice(0, 30)}%`) as { id: string } | undefined;
 
       if (!existingForCluster) {
         createOpenLoop({
