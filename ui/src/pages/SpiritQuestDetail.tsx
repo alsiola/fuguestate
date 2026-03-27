@@ -167,6 +167,8 @@ export function SpiritQuestDetailPage() {
                     const text = typeof ins === "string" ? ins : ins.insight || ins.description || JSON.stringify(ins);
                     // Parse "Rewrote: "before" → "after"" pattern
                     const rewriteMatch = text.match(/^Rewrote:\s*"(.+?)"\s*→\s*"(.+)"$/s);
+                    // Parse "Split: "original" → "new1" + "new2" + ..." pattern
+                    const splitMatch = !rewriteMatch && text.match(/^Split:\s*"(.+?)"\s*→\s*(.+)$/s);
 
                     if (rewriteMatch) {
                       return (
@@ -181,6 +183,32 @@ export function SpiritQuestDetailPage() {
                           <div className="p-3 rounded-lg bg-green-500/5 border border-green-500/10">
                             <p className="text-xs text-green-400 font-medium mb-1">After</p>
                             <p className="text-sm">{rewriteMatch[2]}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (splitMatch) {
+                      const parts = splitMatch[2].match(/"[^"]+"/g)?.map(s => s.slice(1, -1)) || [splitMatch[2]];
+                      return (
+                        <div key={i} className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="quest">split</Badge>
+                          </div>
+                          <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/10">
+                            <p className="text-xs text-red-400 font-medium mb-1">Original</p>
+                            <p className="text-sm">{splitMatch[1]}</p>
+                          </div>
+                          <div className="flex justify-center">
+                            <span className="text-muted-foreground">↓</span>
+                          </div>
+                          <div className="p-3 rounded-lg bg-green-500/5 border border-green-500/10">
+                            <p className="text-xs text-green-400 font-medium mb-1">Split into {parts.length} beliefs</p>
+                            <div className="space-y-2 mt-1">
+                              {parts.map((p, j) => (
+                                <p key={j} className="text-sm pl-2 border-l-2 border-green-500/20">{p}</p>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       );
@@ -220,6 +248,8 @@ export function SpiritQuestDetailPage() {
                     const rewriteMatch = text.match(/^Rejected rewrite:\s*"(.+?)"\s*→\s*"(.+?)"\s*\((.+)\)$/s);
                     // Parse "Rejected consolidation: "a" + "b" + ... → "merged" (reason)" pattern
                     const consolidationMatch = !rewriteMatch && text.match(/^Rejected consolidation:\s*(.+?)\s*→\s*"(.+?)"\s*\((.+)\)$/s);
+                    // Parse "Rejected split: "original" → "new1" + "new2" + ... (reason)" pattern
+                    const splitMatch = !rewriteMatch && !consolidationMatch && text.match(/^Rejected split:\s*"(.+?)"\s*→\s*(.+)\s*\((\w+)\)$/s);
 
                     if (rewriteMatch) {
                       return (
@@ -266,6 +296,33 @@ export function SpiritQuestDetailPage() {
                           <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
                             <p className="text-xs text-red-400 font-medium mb-1">Proposed Consolidation</p>
                             <p className="text-sm opacity-70">{consolidationMatch[2]}</p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (splitMatch) {
+                      const parts = splitMatch[2].match(/"[^"]+"/g)?.map(s => s.slice(1, -1)) || [splitMatch[2]];
+                      return (
+                        <div key={i} className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="retired">rejected</Badge>
+                            <span className="text-xs text-muted-foreground">{splitMatch[3]}</span>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/30 border border-muted">
+                            <p className="text-xs text-muted-foreground font-medium mb-1">Original</p>
+                            <p className="text-sm">{splitMatch[1]}</p>
+                          </div>
+                          <div className="flex justify-center">
+                            <span className="text-muted-foreground">↓</span>
+                          </div>
+                          <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/10">
+                            <p className="text-xs text-red-400 font-medium mb-1">Proposed Split ({parts.length} beliefs)</p>
+                            <div className="space-y-2 mt-1">
+                              {parts.map((p, j) => (
+                                <p key={j} className="text-sm opacity-70 pl-2 border-l-2 border-destructive/20">{p}</p>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       );

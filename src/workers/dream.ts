@@ -345,7 +345,7 @@ export async function runSpiritQuest(styleOverride?: string): Promise<void> {
   }
 
   logger.info(
-    { principles: vision.guiding_principles.length, rewrites: vision.rewrites.length, consolidations: vision.consolidations.length },
+    { principles: vision.guiding_principles.length, rewrites: vision.rewrites.length, consolidations: vision.consolidations.length, splits: (vision.splits ?? []).length },
     "Spirit quest: visions received, coming down..."
   );
 
@@ -359,7 +359,12 @@ export async function runSpiritQuest(styleOverride?: string): Promise<void> {
     rewritten: c.consolidated_proposition,
   }));
 
-  const allChecks = [...rewritesToCheck, ...consolidationsToCheck];
+  const splitsToCheck = (vision.splits ?? []).map((s) => ({
+    original: s.original_proposition,
+    rewritten: s.new_propositions.join(" | "),
+  }));
+
+  const allChecks = [...rewritesToCheck, ...consolidationsToCheck, ...splitsToCheck];
 
   let verdicts: Map<string, "insight" | "hallucination" | "unchanged"> = new Map();
 
@@ -432,6 +437,36 @@ export async function runSpiritQuest(styleOverride?: string): Promise<void> {
       beliefsAfter.push({ id: newBelief.id, proposition: consolidation.consolidated_proposition, action: "consolidated" });
     } else {
       hallucinations.push(`Rejected consolidation: ${consolidation.merged_propositions.map((p) => `"${p}"`).join(" + ")} → "${consolidation.consolidated_proposition}" (${verdict})`);
+    }
+  }
+
+  // Process splits
+  for (const split of vision.splits ?? []) {
+    if (split.new_propositions.length < 2) continue;
+
+    const verdict = verdicts.get(split.new_propositions.join(" | ")) ?? "hallucination";
+
+    if (verdict === "insight") {
+      const original = beliefs.find((b) => b.id === split.original_id);
+      if (original) {
+        const newBeliefIds: string[] = [];
+        for (const prop of split.new_propositions) {
+          const newBelief = createBelief({
+            proposition: prop,
+            scopeType: original.scope_type,
+            scopeKey: original.scope_key,
+            confidence: original.confidence,
+            evidenceFor: [`Spirit quest split: ${split.reasoning}`],
+          });
+          newBeliefIds.push(newBelief.id);
+          beliefsAfter.push({ id: newBelief.id, proposition: prop, action: "split" });
+        }
+        retireBelief(original.id, `Spirit quest split into ${newBeliefIds.join(", ")}: ${split.reasoning}`);
+        insights.push(`Split: "${split.original_proposition}" → ${split.new_propositions.map((p) => `"${p}"`).join(" + ")}`);
+      }
+    } else {
+      hallucinations.push(`Rejected split: "${split.original_proposition}" → ${split.new_propositions.map((p) => `"${p}"`).join(" + ")} (${verdict})`);
+      beliefsAfter.push({ id: split.original_id, proposition: split.original_proposition, action: "kept (split rejected)" });
     }
   }
 

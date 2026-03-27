@@ -627,6 +627,12 @@ export interface SpiritQuestVision {
     consolidated_proposition: string;
     reasoning: string;
   }>;
+  splits: Array<{
+    original_id: string;
+    original_proposition: string;
+    new_propositions: string[];
+    reasoning: string;
+  }>;
   narrative: string;
 }
 
@@ -665,9 +671,22 @@ const SPIRIT_QUEST_VISION_SCHEMA = {
         required: ["merged_ids", "merged_propositions", "consolidated_proposition", "reasoning"],
       },
     },
+    splits: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          original_id: { type: "string" },
+          original_proposition: { type: "string" },
+          new_propositions: { type: "array", items: { type: "string" }, description: "2+ independent beliefs extracted from the original. Each should stand alone as a clear, actionable statement." },
+          reasoning: { type: "string" },
+        },
+        required: ["original_id", "original_proposition", "new_propositions", "reasoning"],
+      },
+    },
     narrative: { type: "string", description: "A vivid, first-person spirit quest narrative. Describe the journey, the visions, what you saw and understood. 4-8 sentences. Be psychedelic." },
   },
-  required: ["guiding_principles", "rewrites", "consolidations", "narrative"],
+  required: ["guiding_principles", "rewrites", "consolidations", "splits", "narrative"],
 };
 
 export async function spiritQuestVision(
@@ -702,6 +721,8 @@ Your quest has three phases:
 **Phase 2 — The Rewrite:** For each belief, rewrite it through the lens of your guiding principles. CRITICAL: rewritten beliefs must be plain, precise, LLM-readable statements of fact or principle — NOT literary prose. They will be injected into future agent briefings, so they must be clear and actionable. The narrative can be as wild as you want, but beliefs are functional infrastructure. If a belief already perfectly captures its principle, you may leave it unchanged (rewrite = original). Only rewrite beliefs that would genuinely benefit — don't change things for the sake of it.
 
 **Phase 3 — Consolidation:** Identify beliefs that are saying the same thing in different ways, or that are two sides of the same coin (e.g. "always validate data" and "don't forget to validate data"). These should be merged into a single, stronger statement. If no beliefs need consolidating, return an empty array.
+
+**Phase 4 — Fission:** Identify beliefs that bundle multiple independent ideas into one statement. A belief like "We use Postgres for the main DB and Redis for caching, both deployed on AWS" contains three independent facts that should each stand alone. Split these into separate, focused beliefs. Each new belief must be a complete, self-contained statement. If no beliefs need splitting, return an empty array. Do NOT split beliefs where the ideas are genuinely entangled (e.g. a principle and its justification).
 
 Write your spirit quest narrative — vivid, first-person, psychedelic — describing what you saw and understood.
 
