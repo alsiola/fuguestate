@@ -95,6 +95,10 @@ You have memory tools available via MCP (prefixed \`mcp__amts__memory_\`). You M
 - When the user tells you a belief is wrong or outdated
 - NOTE: memory_retire_fact requires a belief UUID, not proposition text. Always use memory_search first to find the belief ID, then retire it.
 
+**When to extract procedures (memory_extract_procedure):**
+- After completing a multi-step task that could recur — extract a reusable playbook
+- When you notice repeated patterns across episodes (e.g. "every time we deploy, we do X then Y then Z")
+
 **Other tools:**
 - **memory_record_manual_note**: For context that doesn't fit other categories`);
 

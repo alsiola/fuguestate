@@ -7,6 +7,7 @@ export interface Config {
   decayIntervalMs: number;
   synthesisIntervalMs: number;
   dreamIntervalMs: number;
+  sleepCyclesPerQuest: number;
   briefingTtlSeconds: number;
   maxBriefingItems: number;
   maxRetrievalResults: number;
@@ -24,7 +25,8 @@ export function loadConfig(): Config {
     consolidationIntervalMs: parseInt(process.env.CONSOLIDATION_INTERVAL_MS || "300000", 10),
     decayIntervalMs: parseInt(process.env.DECAY_INTERVAL_MS || "600000", 10),
     synthesisIntervalMs: parseInt(process.env.SYNTHESIS_INTERVAL_MS || "900000", 10),
-    dreamIntervalMs: parseInt(process.env.DREAM_INTERVAL_MS || "60000", 10),
+    dreamIntervalMs: parseInt(process.env.DREAM_INTERVAL_MS || "3600000", 10), // default 60min
+    sleepCyclesPerQuest: parseInt(process.env.SLEEP_CYCLES_PER_QUEST || "12", 10),
     briefingTtlSeconds: parseInt(process.env.BRIEFING_TTL_SECONDS || "300", 10),
     maxBriefingItems: parseInt(process.env.MAX_BRIEFING_ITEMS || "10", 10),
     maxRetrievalResults: parseInt(process.env.MAX_RETRIEVAL_RESULTS || "20", 10),

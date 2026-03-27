@@ -6,8 +6,8 @@ import { checkConflicts, createConflictLoop } from "../domain/conflict/index.js"
 import { resolveConflictDream, deduplicateBeliefs, spiritQuestVision, sobrietyCheck } from "../app/llm.js";
 import { logger } from "../app/logger.js";
 import type { DreamRow, SpiritQuestRow, OpenLoopRow } from "../domain/types.js";
+import { loadConfig } from "../app/config.js";
 
-const QUEST_INTERVAL = 12; // every 12 sleep cycles
 let sleepCycleCount = 0;
 
 export async function runDream(): Promise<void> {
@@ -30,8 +30,9 @@ export async function runDream(): Promise<void> {
     }
 
     // Phase 3: Every Nth cycle, go on a spirit quest
+    const questInterval = loadConfig().sleepCyclesPerQuest;
     sleepCycleCount++;
-    if (sleepCycleCount >= QUEST_INTERVAL) {
+    if (sleepCycleCount >= questInterval) {
       sleepCycleCount = 0;
       logger.info("The medicine takes hold... beginning spirit quest 🍄");
       await runSpiritQuest();

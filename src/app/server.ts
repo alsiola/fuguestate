@@ -17,6 +17,9 @@ import { handleSubagentStop } from "../api/hooks/subagentStop.js";
 // MCP routes
 import { registerMcpRoutes } from "../mcp/server.js";
 
+// UI API
+import { registerUiApi } from "../api/ui.js";
+
 // Workers
 import { runConsolidation } from "../workers/consolidate.js";
 import { runSynthesis } from "../workers/synthesise.js";
@@ -90,6 +93,35 @@ app.post("/hooks/stop-failure", async (req, reply) => reply.send({}));
 
 // MCP routes
 registerMcpRoutes(app);
+
+// UI API routes
+registerUiApi(app);
+
+// Serve static UI files (built Vite app)
+import path from "node:path";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const uiDistPath = path.resolve(__dirname, "../../ui/dist");
+
+if (fs.existsSync(uiDistPath)) {
+  app.register(import("@fastify/static"), {
+    root: uiDistPath,
+    prefix: "/ui/",
+    decorateReply: false,
+  });
+
+  // SPA fallback — serve index.html for any /ui/* route that isn't a file
+  app.setNotFoundHandler(async (req, reply) => {
+    if (req.url.startsWith("/ui")) {
+      const indexPath = path.join(uiDistPath, "index.html");
+      const stream = fs.createReadStream(indexPath);
+      return reply.type("text/html").send(stream);
+    }
+    return reply.status(404).send({ error: "Not found" });
+  });
+}
 
 // Manual trigger endpoints
 app.post("/trigger/sleep", async (_req, reply) => {

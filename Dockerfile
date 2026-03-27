@@ -1,3 +1,11 @@
+FROM node:22-alpine AS ui-build
+
+WORKDIR /ui
+COPY ui/package.json ui/package-lock.json* ./
+RUN npm install
+COPY ui/ ./
+RUN npx vite build
+
 FROM node:22-alpine
 
 WORKDIR /app
@@ -11,6 +19,9 @@ COPY src/ ./src/
 RUN npm run build
 
 RUN npm prune --production
+
+# Copy built UI
+COPY --from=ui-build /ui/dist ./ui/dist
 
 EXPOSE 4317
 

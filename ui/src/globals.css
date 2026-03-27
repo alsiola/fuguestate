@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 5.5%;
+    --card-foreground: 0 0% 98%;
+    --primary: 263 70% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 263 70% 58%;
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted));
+  border-radius: 3px;
+}
+
+/* Markdown prose styling */
+.prose {
+  @apply text-foreground/90 leading-relaxed;
+}
+.prose h1, .prose h2, .prose h3 {
+  @apply text-foreground font-semibold mt-4 mb-2;
+}
+.prose p {
+  @apply mb-3;
+}
+.prose ul, .prose ol {
+  @apply ml-4 mb-3 space-y-1;
+}
+.prose li {
+  @apply list-disc;
+}
+.prose strong {
+  @apply text-primary font-semibold;
+}
+.prose em {
+  @apply text-foreground/70 italic;
+}
+.prose code {
+  @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+}
+.prose blockquote {
+  @apply border-l-2 border-primary/50 pl-4 italic text-muted-foreground;
+}
+
+/* Dream narrative special styling */
+.dream-narrative {
+  @apply relative;
+}
+.dream-narrative::before {
+  content: "";
+  @apply absolute -left-4 top-0 bottom-0 w-0.5 rounded-full;
+  background: linear-gradient(to bottom, hsl(263 70% 58%), hsl(280 80% 45%), hsl(320 70% 50%));
+}
+
+/* Spirit quest glow */
+.quest-glow {
+  box-shadow: 0 0 30px -5px hsl(263 70% 58% / 0.15), 0 0 60px -15px hsl(280 80% 45% / 0.1);
+}
+
+/* Fade in animation */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
