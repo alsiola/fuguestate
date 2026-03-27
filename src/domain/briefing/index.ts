@@ -93,6 +93,7 @@ You have memory tools available via MCP (prefixed \`mcp__amts__memory_\`). You M
 **When to retire facts (memory_retire_fact):**
 - When you observe something that directly contradicts a belief — e.g. the belief says "no git repo" but you can see a .git directory, or a belief says "we use MySQL" but the code imports postgres. Trust what you can observe over what the briefing claims. Retire the stale belief and pin the corrected fact.
 - When the user tells you a belief is wrong or outdated
+- NOTE: memory_retire_fact requires a belief UUID, not proposition text. Always use memory_search first to find the belief ID, then retire it.
 
 **Other tools:**
 - **memory_record_manual_note**: For context that doesn't fit other categories`);

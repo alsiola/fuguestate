@@ -154,11 +154,11 @@ export const MCP_TOOLS = [
   },
   {
     name: "memory_retire_fact",
-    description: "Retire a belief that is no longer valid",
+    description: "Retire a belief that is no longer valid. IMPORTANT: beliefId must be a UUID (e.g. 'cb1297d6-...'), NOT the proposition text. Use memory_search first to find the belief ID.",
     inputSchema: {
       type: "object" as const,
       properties: {
-        beliefId: { type: "string" },
+        beliefId: { type: "string", description: "UUID of the belief to retire. Use memory_search to find this ID first." },
         reason: { type: "string" },
       },
       required: ["beliefId", "reason"],
