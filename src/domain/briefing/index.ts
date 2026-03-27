@@ -90,8 +90,11 @@ You have memory tools available via MCP (prefixed \`mcp__amts__memory_\`). You M
 **When to check conflicts (memory_check_conflicts):**
 - Before making architectural or significant code changes — verify against existing beliefs
 
+**When to retire facts (memory_retire_fact):**
+- When you observe something that directly contradicts a belief — e.g. the belief says "no git repo" but you can see a .git directory, or a belief says "we use MySQL" but the code imports postgres. Trust what you can observe over what the briefing claims. Retire the stale belief and pin the corrected fact.
+- When the user tells you a belief is wrong or outdated
+
 **Other tools:**
-- **memory_retire_fact**: When you discover a belief is no longer true
 - **memory_record_manual_note**: For context that doesn't fit other categories`);
 
   return sections.join("\n");

@@ -303,11 +303,17 @@ export async function assessContradictions(
 ): Promise<ContradictionAssessment | null> {
   if (pairs.length === 0) return { pairs: [] };
 
-  const prompt = `You are a contradiction detector. For each claim–belief pair, determine whether they semantically contradict each other.
+  const prompt = `You are a contradiction detector. For each claim–belief pair, determine whether they **directly** contradict each other.
 
-Two statements contradict if following both would be impossible or would lead to conflicting actions. Subtle tensions count — e.g. "do X autonomously" vs "always ask before doing X" is a contradiction even if the specific actions differ.
+Two statements contradict ONLY if following both would be impossible or would force conflicting actions **on the same topic**. Subtle tensions count when they're about the same concern — e.g. "do X autonomously" vs "always ask before doing X" is a contradiction even if the specific actions differ.
 
-Two statements do NOT contradict if they address genuinely different situations, scopes, or actions.
+Two statements do NOT contradict if:
+- They address genuinely different topics, domains, or concerns (e.g. "we use PostgreSQL" vs "tests should be fast" are unrelated, not contradictory)
+- One is about a factual state and the other is about a principle/strategy — these are different categories, not in tension
+- The only connection is an indirect/infrastructural dependency (e.g. "no version control" and "test coverage strategy" are about different things, even if one could theoretically depend on the other)
+- They address different situations, scopes, or timeframes
+
+Be STRICT: when in doubt, mark as NOT a contradiction. A severity of 0.7+ should be reserved for beliefs that genuinely cannot coexist — where acting on one necessarily violates the other.
 
 Pairs to assess:
 ${pairs.map((p, i) => `${i + 1}. Claim [${p.claimIndex}]: "${p.claim}"\n   Belief [${p.beliefId}]: "${p.beliefProposition}"`).join("\n\n")}
@@ -433,7 +439,7 @@ ${JSON.stringify(EPISODE_CLUSTER_SCHEMA, null, 2)}`;
 export interface DreamResolution {
   title: string;
   narrative: string;
-  resolution: "keep_a" | "keep_b" | "merge" | "retire_both" | "escalate";
+  resolution: "keep_a" | "keep_b" | "merge" | "retire_both" | "escalate" | "not_contradictory";
   winning_belief: string | null;
   merged_proposition: string | null;
   reasoning: string;
@@ -446,8 +452,8 @@ const DREAM_RESOLUTION_SCHEMA = {
     narrative: { type: "string", description: "A brief narrative of the reasoning process, written as a dream journal entry. Use first person. 2-4 sentences." },
     resolution: {
       type: "string",
-      enum: ["keep_a", "keep_b", "merge", "retire_both", "escalate"],
-      description: "keep_a = belief A wins; keep_b = belief B wins; merge = combine into a new proposition; retire_both = neither is useful; escalate = too ambiguous, ask the user",
+      enum: ["keep_a", "keep_b", "merge", "retire_both", "escalate", "not_contradictory"],
+      description: "keep_a = belief A wins; keep_b = belief B wins; merge = combine into a new proposition; retire_both = neither is useful; escalate = too ambiguous, ask the user; not_contradictory = these beliefs are actually about different topics and don't conflict — keep both unchanged",
     },
     winning_belief: { type: ["string", "null"], description: "ID of the winning belief (for keep_a/keep_b), or null" },
     merged_proposition: { type: ["string", "null"], description: "The merged proposition (for merge resolution), or null" },
@@ -482,8 +488,9 @@ Context from the contradiction loop:
 ${loopDescription}
 
 Resolution guidelines:
+- FIRST: check whether these beliefs actually contradict. If they are about different topics/domains and can peacefully coexist, use "not_contradictory" — do NOT force a merge or resolution between unrelated beliefs. A factual statement (e.g. "we use Postgres") and a principle (e.g. "tests should be fast") are not in conflict just because they coexist.
 - Confidence reflects how strongly the user asserted or validated a belief. Belief ${dominant} has higher confidence (${confidenceGap >= 0.2 ? `gap: ${confidenceGap.toFixed(2)}` : "gap is small"}).
-- If merging, search for an underlying principle that would encapsulate both beliefs. If one cannot be found, generate a more general statement that biases towards the higher-confidence belief.
+- If merging, search for an underlying principle that would encapsulate both beliefs. If one cannot be found, generate a more general statement that biases towards the higher-confidence belief. NEVER merge beliefs about different topics into one — that destroys both beliefs.
 - More specific beliefs usually override general ones.
 - Only escalate if the beliefs are genuinely ambiguous and close in confidence — the user needs to decide.
 

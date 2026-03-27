@@ -68,7 +68,7 @@ async function fallingAsleep(): Promise<number> {
 
   let created = 0;
   for (const conflict of conflicts) {
-    if (conflict.severity >= 0.5) {
+    if (conflict.severity >= 0.7) {
       createConflictLoop(conflict, "project");
       created++;
     }
@@ -201,6 +201,12 @@ async function processConflictLoops(): Promise<number> {
         retireBelief(contradictingBelief.id, `Dream resolution: ${dream.reasoning}`);
         resolveOpenLoop(loop.id, "Both beliefs retired as unhelpful");
         actionsTaken.push(`Retired: "${existingBelief.proposition}"`, `Retired: "${contradictingBelief.proposition}"`);
+        break;
+      }
+      case "not_contradictory": {
+        // The dream process determined these beliefs aren't actually in conflict — keep both, resolve the loop
+        resolveOpenLoop(loop.id, `Not contradictory: "${existingBelief.proposition}" and "${contradictingBelief.proposition}" address different topics`);
+        actionsTaken.push(`Kept both — not actually contradictory`);
         break;
       }
       case "escalate": {
