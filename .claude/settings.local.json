@@ -4,8 +4,8 @@
       {
         "hooks": [
           {
-            "type": "command",
-            "command": "curl -s -X POST -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:4317/hooks/session-start"
+            "type": "http",
+            "url": "http://127.0.0.1:4317/hooks/session-start"
           }
         ]
       }

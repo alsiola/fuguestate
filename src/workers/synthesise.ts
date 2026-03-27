@@ -93,7 +93,14 @@ async function analyzeFailurePatterns(toolName: string, failCount: number, loopI
 
   // Derive project scope from the session that produced these failures
   const derivedCwd = failures.find(f => f.session_cwd || f.cwd);
-  const scopeKey = scopeFromCwd(derivedCwd?.session_cwd ?? derivedCwd?.cwd ?? "");
+  let scopeKey = scopeFromCwd(derivedCwd?.session_cwd ?? derivedCwd?.cwd ?? "");
+  if (!scopeKey) {
+    // Fallback: use the most common scope from existing beliefs
+    const fallback = db
+      .prepare("SELECT scope_key, COUNT(*) as cnt FROM beliefs WHERE scope_key != '' GROUP BY scope_key ORDER BY cnt DESC LIMIT 1")
+      .get() as { scope_key: string } | undefined;
+    scopeKey = fallback?.scope_key ?? "";
+  }
   if (!scopeKey) {
     logger.warn({ toolName }, "Cannot determine project scope for failure analysis — skipping");
     return;
