@@ -22,6 +22,9 @@ export function Layout() {
           </h1>
           <p className="text-xs text-muted-foreground mt-1">Agentic memory through dreams</p>
         </div>
+        <div className="p-4 border-b">
+          <AgentEgo />
+        </div>
         <nav className="flex-1 p-3 space-y-1">
           {navItems.map((item) => (
             <NavLink
@@ -42,9 +45,6 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
-        <div className="p-4 border-t">
-          <AgentEgo />
-        </div>
         <div className="px-4 pb-3 text-[10px] text-muted-foreground/50">
           fuguestate v1.0
         </div>

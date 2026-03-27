@@ -25,7 +25,7 @@ const typeConfig: Record<string, { badge: "dream" | "quest" | "episode"; icon: s
 
 export function DashboardPage() {
   const stats = useQuery({ queryKey: ["stats"], queryFn: () => apiFetch<Stats>("/api/stats") });
-  const briefing = useQuery({ queryKey: ["briefing"], queryFn: () => apiFetch<{ markdown: string }>("/api/briefing") });
+  const briefing = useQuery({ queryKey: ["briefing"], queryFn: () => apiFetch<{ markdown: string }>("/api/briefing"), refetchInterval: 30_000 });
   const timeline = useQuery({ queryKey: ["timeline"], queryFn: () => apiFetch<TimelineItem[]>("/api/timeline") });
 
   if (stats.isLoading) return <Loading />;

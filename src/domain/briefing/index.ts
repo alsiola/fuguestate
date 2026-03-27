@@ -4,6 +4,7 @@ import { getActiveBeliefs } from "../beliefs/index.js";
 import { getOpenLoops } from "../openLoops/index.js";
 import { getRecentEpisodes } from "../episodes/index.js";
 import { getProceduresByScope } from "../procedures/index.js";
+import { getProjectScope } from "../../app/projectScope.js";
 import type { CacheRow, ScopeType } from "../types.js";
 
 export interface BriefingParams {
@@ -17,9 +18,13 @@ export function generateBriefing(params: BriefingParams): string {
   const maxItems = params.maxItems ?? 10;
   const sections: string[] = ["# Session Briefing\nThis is your briefing — injected automatically at session start. Refer to it when the user asks about your briefing, beliefs, or memory context. Do NOT use the MEMORY.md file-based memory system — use only the MCP memory tools (prefixed `mcp__amts__memory_`)."];
 
-  // Key beliefs
-  const scopeType: ScopeType = params.scope === "session" || params.scope === "task" ? "project" : params.scope as ScopeType;
-  const beliefs = getActiveBeliefs(scopeType, undefined, Math.min(maxItems, 5));
+  // Key beliefs — include both project and user scope, filtered to current project
+  const limit = Math.min(maxItems, 10);
+  const scopeKey = getProjectScope() || undefined;
+  const projectBeliefs = getActiveBeliefs("project", scopeKey, limit);
+  const userBeliefs = getActiveBeliefs("user", scopeKey, limit);
+  const seen = new Set(projectBeliefs.map(b => b.id));
+  const beliefs = [...projectBeliefs, ...userBeliefs.filter(b => !seen.has(b.id))].slice(0, limit);
   if (beliefs.length > 0) {
     sections.push("## Key Beliefs");
     for (const b of beliefs) {

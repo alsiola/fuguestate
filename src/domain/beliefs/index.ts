@@ -38,10 +38,11 @@ export function getBelief(id: string): BeliefRow | undefined {
 
 export function getActiveBeliefs(scopeType?: ScopeType, scopeKey?: string, limit = 50): BeliefRow[] {
   const db = getDb();
-  if (scopeType && scopeKey !== undefined) {
+  if (scopeType && scopeKey) {
+    // Match beliefs scoped to this project OR unscoped (legacy empty scope_key)
     return db
       .prepare(
-        "SELECT * FROM beliefs WHERE status = 'active' AND scope_type = ? AND scope_key = ? ORDER BY confidence DESC LIMIT ?"
+        "SELECT * FROM beliefs WHERE status = 'active' AND scope_type = ? AND (scope_key = ? OR scope_key = '') ORDER BY confidence DESC LIMIT ?"
       )
       .all(scopeType, scopeKey, limit) as BeliefRow[];
   }
