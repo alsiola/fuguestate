@@ -138,20 +138,71 @@ Add to your project's `.mcp.json`:
 }
 ```
 
-## MCP tools
+## FugueState Dashboard
+
+The project ships with a full React dashboard (served from the backend container at `http://localhost:4317/ui/`).
+
+### Features
+
+- **Agent Ego** — a persistent identity that evolves. Randomly generated name, personality traits, and catchphrase (pulled from spirit quest narratives). Mood computed dynamically from recent dream activity and open contradictions. Displayed prominently in the sidebar.
+- **Existential Dread Meter** — a 7-level scale from "Serene" to "Complete Ego Death", computed from contradictions, disputed beliefs, stale beliefs, and undelivered dreams.
+- **Belief Confidence Sparklines** — inline charts showing how each belief's confidence has changed over time.
+- **Dream Mood Colors** — dreams are color-coded by type (conflict resolution, insight, consolidation).
+- **Undelivered Indicators** — dashboard shows counts of dreams and spirit quests waiting to be delivered to the next session.
+- **Live Briefing** — the agent briefing auto-refreshes every 30 seconds, showing current beliefs, open loops, and known procedures.
+
+### UI Stack
+
+Vite + React, shadcn/ui components, react-router, @tanstack/react-query, Tailwind CSS. Dark theme. Served from the backend container (no separate frontend service).
+
+## Project-Scoped Beliefs
+
+Beliefs are scoped to the project they were created in via `scope_key` (derived from the `cwd` basename at session start). This means the system can run across multiple projects without cross-contamination — each project sees only its own beliefs and procedures in the briefing.
+
+The briefing includes both `project` and `user` scope beliefs, so project-specific facts and user preferences are both surfaced.
+
+## Non-Conflict Exemptions
+
+When a dream resolves two beliefs as "not actually contradictory", the pair is recorded in a `belief_non_conflicts` table. Future sleep cycles skip these pairs during contradiction scanning, preventing the same non-conflict from being re-dreamed endlessly.
+
+## Automated Failure Analysis
+
+The synthesis worker (runs every 15 minutes) detects tools that fail repeatedly (3+ times in 7 days). When a repeated failure pattern is found:
+
+1. An open loop is created flagging the pattern
+2. On the next synthesis cycle, the failures are analyzed by LLM for root cause
+3. A **procedure** is created with prevention steps
+4. A **belief** is pinned about the root cause
+5. The open loop is **resolved** with a full audit trail
+
+## MCP Tools
 
 | Tool | What it does |
 |------|-------------|
 | `memory_search` | Search across all memory types |
-| `memory_pin_fact` | Pin a belief (auto-detects conflicts) |
-| `memory_retire_fact` | Kill a belief that's no longer true |
+| `memory_pin_fact` | Pin a belief with project scope (auto-detects conflicts) |
+| `memory_retire_fact` | Kill a belief that's no longer true (requires UUID) |
 | `memory_check_conflicts` | Test claims against existing beliefs |
 | `memory_get_open_loops` | What's unresolved? |
 | `memory_get_project_truths` | What do we believe right now? |
-| `memory_reflect_on_task` | Post-task reflection |
-| `memory_extract_procedure` | Turn past experience into a playbook |
+| `memory_get_procedure` | Look up a procedure by ID or keyword |
+| `memory_reflect_on_task` | Post-task reflection (extracts lessons and belief candidates) |
+| `memory_extract_procedure` | Turn past experience or descriptions into a playbook |
+| `memory_record_manual_note` | Store context that doesn't fit other categories |
+| `memory_get_related_episodes` | Find similar past episodes |
+| `memory_suggest_next_checks` | Get suggestions for what to verify next |
+| `memory_explain_prior_decision` | Look up why a past decision was made |
+| `memory_mark_resolution` | Mark an open loop as resolved |
+| `memory_get_user_preferences` | Get known user preferences |
 
-## Design principles
+## Slash Commands
+
+| Command | What it does |
+|---------|-------------|
+| `/sleep` | Trigger a sleep cycle (scan for conflicts, dream about them) |
+| `/spirit-quest` | Trigger a full spirit quest (sleep cycle + deep belief review) |
+
+## Design Principles
 
 - **Record everything, believe cautiously** — experiences are cheap, beliefs are earned
 - **Evidence beats memory** — what the code says now outranks what we remember
@@ -159,6 +210,7 @@ Add to your project's `.mcp.json`:
 - **Sleep on it** — don't resolve conflicts immediately, dream about them
 - **Trust but verify** — spirit quest rewrites must pass a sobriety check
 - **Fail open** — if memory is down, Claude Code works fine without it
+- **No recurring nightmares** — resolved non-conflicts are remembered, not re-dreamed
 
 ## License
 

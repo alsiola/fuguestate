@@ -1,26 +1,34 @@
 import { getEpisode } from "../../domain/episodes/index.js";
 import { createProcedure } from "../../domain/procedures/index.js";
+import { getProjectScope } from "../../app/projectScope.js";
 
 export function handleExtractProcedure(args: Record<string, unknown>) {
   const topic = args.topic as string;
-  const episodeIds = args.episodeIds as string[];
+  const episodeIds = (args.episodeIds as string[] | undefined) ?? [];
+  const providedSteps = args.steps as string | undefined;
+  const triggerDescription = args.triggerDescription as string | undefined;
 
-  // Gather episode data
+  // Gather episode data if IDs provided
   const episodes = episodeIds
     .map((id) => getEpisode(id))
     .filter((ep): ep is NonNullable<typeof ep> => ep != null);
 
-  if (episodes.length === 0) {
-    return { error: "No valid episodes found" };
+  // Build steps from episodes and/or provided steps
+  const stepParts: string[] = [];
+
+  if (providedSteps) {
+    stepParts.push(providedSteps);
   }
 
-  // Build steps from episode action summaries
-  const steps: string[] = [];
   for (const ep of episodes) {
     if (ep.action_summary) {
-      steps.push(`### From: ${ep.title}`);
-      steps.push(ep.action_summary);
+      stepParts.push(`### From: ${ep.title}`);
+      stepParts.push(ep.action_summary);
     }
+  }
+
+  if (stepParts.length === 0) {
+    stepParts.push(`Procedure for: ${topic}\n\n(Steps to be filled in)`);
   }
 
   // Build success/failure signals from outcomes
@@ -35,16 +43,15 @@ export function handleExtractProcedure(args: Record<string, unknown>) {
     failureSmells.push(...lessons);
   }
 
-  const stepsMarkdown = steps.length > 0 ? steps.join("\n\n") : `Procedure for: ${topic}\n\n(Steps to be filled in)`;
-
   const procedure = createProcedure({
     name: topic,
-    triggerDescription: `When working on: ${topic}`,
-    stepsMarkdown,
+    triggerDescription: triggerDescription ?? `When working on: ${topic}`,
+    stepsMarkdown: stepParts.join("\n\n"),
     successSignals,
     failureSmells,
     scopeType: "project",
-    confidence: 0.5,
+    scopeKey: getProjectScope(),
+    confidence: episodes.length > 0 ? 0.6 : 0.5,
     sourceEpisodeIds: episodeIds,
   });
 

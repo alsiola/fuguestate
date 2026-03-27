@@ -185,6 +185,15 @@ CREATE TABLE IF NOT EXISTS working_memory (
 
 CREATE INDEX IF NOT EXISTS idx_working_memory_session ON working_memory(session_id);
 
+-- Non-conflict exemptions: belief pairs that have been dreamed about and deemed non-contradictory
+CREATE TABLE IF NOT EXISTS belief_non_conflicts (
+  belief_id_a TEXT NOT NULL,
+  belief_id_b TEXT NOT NULL,
+  resolved_at TEXT NOT NULL,
+  dream_id TEXT,
+  PRIMARY KEY (belief_id_a, belief_id_b)
+);
+
 -- FTS indexes for retrieval
 CREATE VIRTUAL TABLE IF NOT EXISTS events_fts USING fts5(
   event_type, payload_json, content=events, content_rowid=rowid

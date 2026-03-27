@@ -44,6 +44,31 @@ export async function runDream(): Promise<void> {
 }
 
 /**
+ * Record that two beliefs have been determined to be non-contradictory,
+ * preventing them from being re-detected as conflicts in future dream cycles.
+ */
+function recordNonConflict(beliefIdA: string, beliefIdB: string): void {
+  const db = getDb();
+  // Store with consistent ordering so lookups work regardless of pair order
+  const [a, b] = [beliefIdA, beliefIdB].sort();
+  db.prepare(
+    "INSERT OR IGNORE INTO belief_non_conflicts (belief_id_a, belief_id_b, resolved_at) VALUES (?, ?, ?)"
+  ).run(a, b, new Date().toISOString());
+}
+
+/**
+ * Check if a pair of beliefs has already been resolved as non-contradictory.
+ */
+function isKnownNonConflict(beliefIdA: string, beliefIdB: string): boolean {
+  const db = getDb();
+  const [a, b] = [beliefIdA, beliefIdB].sort();
+  const row = db
+    .prepare("SELECT 1 FROM belief_non_conflicts WHERE belief_id_a = ? AND belief_id_b = ?")
+    .get(a, b);
+  return !!row;
+}
+
+/**
  * Pre-dream phase: scan all active beliefs against each other for
  * undetected contradictions. Like lying in bed going "wait... do I
  * actually believe both of these?"
@@ -75,6 +100,13 @@ async function fallingAsleep(): Promise<number> {
     const a = beliefMap.get(c.belief_a_id);
     const b = beliefMap.get(c.belief_b_id);
     if (!a || !b) continue;
+
+    // Skip pairs previously resolved as non-contradictory
+    if (isKnownNonConflict(c.belief_a_id, c.belief_b_id)) {
+      logger.debug({ a: c.belief_a_id, b: c.belief_b_id }, "Skipping known non-conflict pair");
+      continue;
+    }
+
     createConflictLoop({
       claim: a.proposition,
       conflictsWith: b.proposition,
@@ -220,6 +252,8 @@ async function processConflictLoops(): Promise<number> {
         // The dream process determined these beliefs aren't actually in conflict — keep both, resolve the loop
         resolveOpenLoop(loop.id, `Not contradictory: "${existingBelief.proposition}" and "${contradictingBelief.proposition}" address different topics`);
         actionsTaken.push(`Kept both — not actually contradictory`);
+        // Record this pair as non-conflicting so we don't re-dream about them
+        recordNonConflict(existingBelief.id, contradictingBelief.id);
         break;
       }
       case "escalate": {

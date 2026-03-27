@@ -18,6 +18,7 @@ import { handleGetRelatedEpisodes } from "./tools/getRelatedEpisodes.js";
 import { handleSuggestNextChecks } from "./tools/suggestNextChecks.js";
 import { handleExplainPriorDecision } from "./tools/explainPriorDecision.js";
 import { handleExtractProcedure } from "./tools/extractProcedure.js";
+import { handleGetProcedure } from "./tools/getProcedure.js";
 
 // MCP resources
 import { handleProjectBriefingResource } from "./resources/projectBriefing.js";
@@ -192,14 +193,27 @@ export const MCP_TOOLS = [
   },
   {
     name: "memory_extract_procedure",
-    description: "Extract a reusable procedure from a set of episodes",
+    description: "Extract a reusable procedure from a topic description and/or episodes. If no episodeIds are provided, generates the procedure from the topic and steps alone.",
     inputSchema: {
       type: "object" as const,
       properties: {
-        topic: { type: "string" },
-        episodeIds: { type: "array", items: { type: "string" } },
+        topic: { type: "string", description: "Name/title of the procedure" },
+        steps: { type: "string", description: "Markdown description of the steps (used when no episodes are available)" },
+        triggerDescription: { type: "string", description: "When this procedure should be triggered" },
+        episodeIds: { type: "array", items: { type: "string" }, description: "Optional episode IDs to extract steps from" },
       },
-      required: ["topic", "episodeIds"],
+      required: ["topic"],
+    },
+  },
+  {
+    name: "memory_get_procedure",
+    description: "Look up a procedure by ID (or first 8 chars) or search by keyword. Use this to retrieve full steps for a procedure listed in the briefing.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        procedureId: { type: "string", description: "Full or partial (first 8 chars) procedure ID" },
+        query: { type: "string", description: "Search procedures by keyword" },
+      },
     },
   },
 ];
@@ -307,6 +321,7 @@ async function dispatchTool(name: string, args: Record<string, unknown>): Promis
     case "memory_mark_resolution": return handleMarkResolution(args);
     case "memory_reflect_on_task": return handleReflectOnTask(args);
     case "memory_extract_procedure": return handleExtractProcedure(args);
+    case "memory_get_procedure": return handleGetProcedure(args);
     default: throw new Error(`Unknown tool: ${name}`);
   }
 }

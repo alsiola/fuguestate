@@ -53,12 +53,12 @@ export function generateBriefing(params: BriefingParams): string {
     }
   }
 
-  // Relevant procedures
-  const procs = getProceduresByScope(undefined, undefined, 3);
+  // Relevant procedures — scoped to current project
+  const procs = getProceduresByScope("project", scopeKey, 10);
   if (procs.length > 0) {
-    sections.push("\n## Known Procedures");
+    sections.push("\n## Known Procedures\nUse `memory_get_procedure` with the ID to retrieve full steps when needed.");
     for (const p of procs) {
-      sections.push(`- **${p.name}**: ${p.trigger_description ?? ""}`);
+      sections.push(`- [${p.id.slice(0, 8)}] **${p.name}**: ${p.trigger_description ?? ""}`);
     }
   }
 
