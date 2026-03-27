@@ -14,6 +14,7 @@ export async function runSynthesis(): Promise<void> {
     await findRepeatedFailures();
     findUnresolvedContradictions();
     await findRediscoveredPatterns();
+    await resolveRecurringPatterns();
 
     logger.info("Background synthesis complete");
   } catch (err) {
@@ -267,5 +268,144 @@ async function findRediscoveredPatterns(): Promise<void> {
         suggestedNextCheck: "Consider extracting a reusable procedure",
       });
     }
+  }
+}
+
+/**
+ * Auto-resolve open "Recurring pattern" todo loops by extracting procedures.
+ * Finds loops that have been open for at least 1 hour, gathers related
+ * episodes, asks the LLM to synthesize a procedure, then resolves the loop.
+ */
+async function resolveRecurringPatterns(): Promise<void> {
+  const db = getDb();
+
+  const openPatternLoops = db
+    .prepare(
+      `SELECT id, title, description FROM open_loops
+       WHERE status = 'open' AND loop_type = 'todo' AND title LIKE '%Recurring pattern%'
+       AND created_at < datetime('now', '-1 hour')
+       ORDER BY created_at ASC LIMIT 3`
+    )
+    .all() as Array<{ id: string; title: string; description: string }>;
+
+  if (openPatternLoops.length === 0) return;
+
+  for (const loop of openPatternLoops) {
+    // Extract episode titles mentioned in the description
+    const descriptionTitles = loop.description ?? "";
+
+    // Find related episodes by searching for keywords from the loop title
+    const patternName = loop.title.replace(/^Recurring pattern:\s*/, "").replace(/\s*\(\d+x\)\s*$/, "");
+    const keywords = patternName.split(/\s+/).filter(w => w.length > 3).slice(0, 3);
+
+    let episodes: Array<{ id: string; title: string; goal: string | null; action_summary: string | null; outcome_summary: string | null }> = [];
+
+    if (keywords.length > 0) {
+      // Search episodes FTS for related episodes
+      const ftsQuery = keywords.join(" OR ");
+      try {
+        episodes = db
+          .prepare(
+            `SELECT e.id, e.title, e.goal, e.action_summary, e.outcome_summary
+             FROM episodes e
+             JOIN episodes_fts f ON e.rowid = f.rowid
+             WHERE episodes_fts MATCH ? AND e.status = 'closed'
+             ORDER BY rank LIMIT 10`
+          )
+          .all(ftsQuery) as typeof episodes;
+      } catch {
+        // FTS might fail, fall back to LIKE
+        episodes = db
+          .prepare(
+            `SELECT id, title, goal, action_summary, outcome_summary
+             FROM episodes WHERE status = 'closed' AND title LIKE ?
+             ORDER BY started_at DESC LIMIT 10`
+          )
+          .all(`%${keywords[0]}%`) as typeof episodes;
+      }
+    }
+
+    if (episodes.length < 2) {
+      // Not enough data — dismiss the loop rather than letting it sit forever
+      resolveOpenLoop(loop.id, `Auto-dismissed: insufficient episode data to extract a procedure (found ${episodes.length} related episodes).`);
+      logger.info({ loopId: loop.id, patternName }, "Dismissed recurring pattern loop — not enough episodes");
+      continue;
+    }
+
+    // Ask LLM to synthesize a procedure
+    const episodeSummaries = episodes.map((ep, i) =>
+      `${i + 1}. "${ep.title}"${ep.goal ? `\n   Goal: ${ep.goal}` : ""}${ep.action_summary ? `\n   Actions: ${ep.action_summary.slice(0, 200)}` : ""}${ep.outcome_summary ? `\n   Outcome: ${ep.outcome_summary.slice(0, 200)}` : ""}`
+    ).join("\n\n");
+
+    const prompt = `These episodes represent a recurring pattern in the project: "${patternName}"
+
+${episodeSummaries}
+
+Extract a reusable procedure from these episodes. The procedure should help someone do this type of task efficiently next time.
+
+Produce:
+1. A clear procedure name (short, imperative)
+2. When this procedure should be triggered (what situation)
+3. Step-by-step instructions in markdown
+4. Signs that the procedure succeeded
+5. Signs that something went wrong`;
+
+    const result = await askClaude<{
+      procedure_name: string;
+      trigger: string;
+      steps_markdown: string;
+      success_signals: string[];
+      failure_smells: string[];
+    }>(prompt, {
+      type: "object",
+      properties: {
+        procedure_name: { type: "string" },
+        trigger: { type: "string" },
+        steps_markdown: { type: "string" },
+        success_signals: { type: "array", items: { type: "string" } },
+        failure_smells: { type: "array", items: { type: "string" } },
+      },
+      required: ["procedure_name", "trigger", "steps_markdown"],
+    });
+
+    if (!result.ok || !result.data) {
+      logger.warn({ loopId: loop.id, patternName }, "LLM procedure extraction unavailable");
+      continue;
+    }
+
+    const { procedure_name, trigger, steps_markdown, success_signals, failure_smells } = result.data;
+
+    if (!procedure_name) {
+      resolveOpenLoop(loop.id, "Auto-dismissed: LLM could not generate a meaningful procedure.");
+      continue;
+    }
+
+    // Derive scope from a related episode's session
+    const sessionCwd = db
+      .prepare(
+        `SELECT JSON_EXTRACT(s.payload_json, '$.cwd') as cwd
+         FROM events s
+         WHERE s.session_id = (SELECT session_id FROM episodes WHERE id = ? LIMIT 1)
+         AND s.event_type = 'session_started'
+         ORDER BY s.ts DESC LIMIT 1`
+      )
+      .get(episodes[0].id) as { cwd: string } | undefined;
+
+    const scopeKey = scopeFromCwd(sessionCwd?.cwd ?? "");
+
+    createProcedure({
+      name: procedure_name,
+      triggerDescription: trigger,
+      stepsMarkdown: steps_markdown,
+      successSignals: success_signals ?? [],
+      failureSmells: failure_smells ?? [],
+      scopeType: "project",
+      scopeKey: scopeKey || undefined,
+      confidence: 0.6,
+      sourceEpisodeIds: episodes.map(e => e.id),
+    });
+
+    resolveOpenLoop(loop.id, `Auto-resolved: extracted procedure "${procedure_name}" from ${episodes.length} related episodes.`);
+    logger.info({ loopId: loop.id, patternName, procedure_name, episodeCount: episodes.length }, "Resolved recurring pattern → procedure");
   }
 }
