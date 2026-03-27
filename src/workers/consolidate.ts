@@ -20,6 +20,7 @@ export async function runConsolidation(): Promise<void> {
     createProcedureCandidates();
     updateExistingBeliefs();
     pruneStaleWorkingMemory();
+    snapshotBeliefConfidence();
     regenerateBriefingCache();
 
     logger.info("Consolidation complete");
@@ -441,5 +442,23 @@ function regenerateBriefingCache(): void {
   const briefing = generateBriefing({ scope: "project" });
   if (briefing !== "No relevant memory available yet.") {
     cacheBriefing("briefing:project:default", "project_briefing", briefing, 300);
+  }
+}
+
+function snapshotBeliefConfidence(): void {
+  const db = getDb();
+  const beliefs = getActiveBeliefs(undefined, undefined, 100);
+  const now = new Date().toISOString();
+
+  const stmt = db.prepare("INSERT INTO belief_history (belief_id, confidence, recorded_at) VALUES (?, ?, ?)");
+  for (const b of beliefs) {
+    // Only snapshot if the last snapshot was >5 min ago or doesn't exist
+    const last = db.prepare(
+      "SELECT recorded_at FROM belief_history WHERE belief_id = ? ORDER BY recorded_at DESC LIMIT 1"
+    ).get(b.id) as { recorded_at: string } | undefined;
+
+    if (!last || (Date.now() - new Date(last.recorded_at).getTime()) > 300_000) {
+      stmt.run(b.id, b.confidence, now);
+    }
   }
 }

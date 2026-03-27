@@ -186,6 +186,16 @@ export function registerUiApi(app: FastifyInstance) {
     return { data: rows, total };
   });
 
+  // Belief confidence history
+  app.get("/api/beliefs/:id/history", async (req) => {
+    const db = getDb();
+    const { id } = req.params as { id: string };
+    const rows = db
+      .prepare("SELECT confidence, recorded_at FROM belief_history WHERE belief_id = ? ORDER BY recorded_at ASC LIMIT 50")
+      .all(id) as Array<{ confidence: number; recorded_at: string }>;
+    return rows;
+  });
+
   // Episodes
   app.get("/api/episodes", async (req) => {
     const db = getDb();

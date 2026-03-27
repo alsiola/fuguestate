@@ -161,6 +161,17 @@ CREATE TABLE IF NOT EXISTS spirit_quests (
 
 CREATE INDEX IF NOT EXISTS idx_spirit_quests_created ON spirit_quests(created_at);
 
+-- Belief confidence history for sparklines
+CREATE TABLE IF NOT EXISTS belief_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  belief_id TEXT NOT NULL,
+  confidence REAL NOT NULL,
+  recorded_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_belief_history_belief ON belief_history(belief_id);
+CREATE INDEX IF NOT EXISTS idx_belief_history_ts ON belief_history(recorded_at);
+
 -- Working memory (session-local, short-lived)
 CREATE TABLE IF NOT EXISTS working_memory (
   id TEXT PRIMARY KEY,

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loading } from "@/components/Loading";
 import { Empty } from "@/components/Empty";
+import { Sparkline } from "@/components/Sparkline";
 import { apiFetch, timeAgo } from "@/lib/utils";
 import type { Belief, Paginated } from "@/lib/types";
 
@@ -65,6 +66,7 @@ export function BeliefsPage() {
                       >
                         {confidencePct}
                       </div>
+                      <Sparkline beliefId={belief.id} />
                     </div>
 
                     <div className="flex-1 min-w-0">
