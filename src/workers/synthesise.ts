@@ -118,7 +118,12 @@ Produce:
     return;
   }
 
-  const { root_cause, prevention_steps, issue_type, procedure_name } = result.data;
+  const { root_cause, prevention_steps, issue_type } = result.data;
+  let { procedure_name } = result.data;
+
+  if (!procedure_name) {
+    procedure_name = `Recover from ${toolName} failures`;
+  }
 
   // Create a procedure from the analysis
   const stepsMarkdown = [

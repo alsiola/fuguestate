@@ -40,6 +40,7 @@ export async function askClaude<T>(prompt: string, jsonSchema: Record<string, un
   const model = opts?.model ?? process.env.LLM_MODEL ?? "claude-haiku-4-5-20251001";
   const maxTokens = opts?.maxTokens ?? 2048;
 
+  const schemaBlock = `\n\nYou MUST respond with JSON matching this exact schema:\n\`\`\`json\n${JSON.stringify(jsonSchema, null, 2)}\n\`\`\``;
   const systemPrompt = "You are a structured data extraction engine. You MUST respond with valid, complete JSON matching the requested schema. NOTHING ELSE. No explanation, no markdown, no code fences, no trailing text. If the JSON would be too long, reduce the content of string fields — NEVER output truncated/incomplete JSON. A partial JSON response is a catastrophic failure.";
 
   let text = "";
@@ -47,7 +48,7 @@ export async function askClaude<T>(prompt: string, jsonSchema: Record<string, un
     const response = await anthropic.messages.create({
       model,
       max_tokens: maxTokens,
-      messages: [{ role: "user", content: prompt }],
+      messages: [{ role: "user", content: prompt + schemaBlock }],
       system: systemPrompt,
     });
 
