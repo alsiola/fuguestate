@@ -352,16 +352,18 @@ export async function runSpiritQuest(styleOverride?: string): Promise<void> {
   // Phase 2: Sobriety check — did the rewrites make sense?
   const rewritesToCheck = vision.rewrites
     .filter((r) => r.rewritten_proposition !== r.original_proposition)
-    .map((r) => ({ original: r.original_proposition, rewritten: r.rewritten_proposition }));
+    .map((r) => ({ original: r.original_proposition, rewritten: r.rewritten_proposition, kind: "rewrite" as const }));
 
   const consolidationsToCheck = vision.consolidations.map((c) => ({
     original: c.merged_propositions.join(" + "),
     rewritten: c.consolidated_proposition,
+    kind: "consolidation" as const,
   }));
 
   const splitsToCheck = (vision.splits ?? []).map((s) => ({
     original: s.original_proposition,
     rewritten: s.new_propositions.join(" | "),
+    kind: "split" as const,
   }));
 
   const allChecks = [...rewritesToCheck, ...consolidationsToCheck, ...splitsToCheck];

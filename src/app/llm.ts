@@ -775,19 +775,24 @@ const SOBRIETY_CHECK_SCHEMA = {
  * and decide if it's a genuine insight or a hallucination.
  */
 export async function sobrietyCheck(
-  rewrites: Array<{ original: string; rewritten: string }>
+  rewrites: Array<{ original: string; rewritten: string; kind?: "rewrite" | "consolidation" | "split" }>
 ): Promise<SobrietyCheck | null> {
-  const prompt = `You are a memory system coming down from a spirit quest. During the trip, you rewrote some of your beliefs. Now you need to check each rewrite with sober eyes.
+  const prompt = `You are a memory system coming down from a spirit quest. During the trip, you transformed some of your beliefs. Now you need to check each transformation with sober eyes.
 
-For each pair, judge whether the rewrite is:
-- **insight**: genuinely clearer, more principled, and faithful to what the user originally meant. The core intent is preserved or sharpened.
-- **hallucination**: the rewrite lost the original meaning, added claims the user never made, softened a strong opinion the user clearly held, or went off on a tangent. The trip led you astray.
-- **unchanged**: the original and rewrite are effectively the same.
+For each pair, judge whether the transformation is:
+- **insight**: genuinely better than the original. The core intent is preserved or sharpened.
+- **hallucination**: the transformation lost the original meaning, added claims never made, softened a strong opinion, or went off on a tangent. The trip led you astray.
+- **unchanged**: the original and result are effectively the same.
 
-Be conservative. Users' beliefs are their own — don't "improve" strong opinions into wishy-washy balanced takes. If the user said something blunt, the rewrite should stay blunt.
+**Different transformations have different success criteria:**
+- **Rewrite** (1→1): The rewrite should be clearer and more principled while faithfully preserving what the user originally meant.
+- **Consolidation** (N→1): The merged belief should capture the essential meaning of all source beliefs without losing important distinctions.
+- **Split** (1→N): The split beliefs should collectively cover ALL the information in the original, with each new belief being a genuinely independent fact that stands on its own. A split is an insight if the original clearly bundled multiple unrelated ideas. Judge generously — if the original contains numbered items, distinct topics, or separable facts, splitting is probably correct.
 
-Rewrites to check:
-${rewrites.map((r, i) => `${i + 1}. Original: "${r.original}"\n   Rewrite: "${r.rewritten}"`).join("\n\n")}
+Be conservative with rewrites (users' beliefs are their own), but be generous with splits — bundled beliefs are a known problem and decomposing them is almost always an improvement.
+
+Transformations to check:
+${rewrites.map((r, i) => `${i + 1}. [${r.kind ?? "rewrite"}] Original: "${r.original}"\n   Result: "${r.rewritten}"`).join("\n\n")}
 
 Respond with JSON matching this schema:
 ${JSON.stringify(SOBRIETY_CHECK_SCHEMA, null, 2)}`;
