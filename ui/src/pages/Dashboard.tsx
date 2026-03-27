@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loading } from "@/components/Loading";
+import { Markdown } from "@/components/Markdown";
 import { apiFetch, timeAgo } from "@/lib/utils";
 import type { Stats, TimelineItem } from "@/lib/types";
 
@@ -23,6 +24,7 @@ const typeConfig: Record<string, { badge: "dream" | "quest" | "episode"; icon: s
 
 export function DashboardPage() {
   const stats = useQuery({ queryKey: ["stats"], queryFn: () => apiFetch<Stats>("/api/stats") });
+  const briefing = useQuery({ queryKey: ["briefing"], queryFn: () => apiFetch<{ markdown: string }>("/api/briefing") });
   const timeline = useQuery({ queryKey: ["timeline"], queryFn: () => apiFetch<TimelineItem[]>("/api/timeline") });
 
   if (stats.isLoading) return <Loading />;
@@ -51,6 +53,20 @@ export function DashboardPage() {
             </Card>
           </Link>
         ))}
+      </div>
+
+      {/* Agent Briefing */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4">Agent Briefing</h3>
+        {briefing.isLoading ? (
+          <Loading />
+        ) : briefing.data ? (
+          <Card className="border-primary/20">
+            <CardContent className="p-6">
+              <Markdown content={briefing.data.markdown} />
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
 
       {/* Uptime */}

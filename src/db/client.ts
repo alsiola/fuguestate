@@ -30,6 +30,13 @@ export function initDb(dbPath: string): Database.Database {
   // Run schema
   db.exec(SCHEMA_SQL);
 
+  // Migrations for existing databases
+  const cols = db.prepare("PRAGMA table_info(spirit_quests)").all() as Array<{ name: string }>;
+  if (!cols.some((c) => c.name === "style_used")) {
+    db.exec("ALTER TABLE spirit_quests ADD COLUMN style_used TEXT");
+    logger.info("Migration: added style_used column to spirit_quests");
+  }
+
   logger.info({ dbPath }, "Database initialised");
   return db;
 }

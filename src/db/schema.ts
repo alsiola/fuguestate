@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS spirit_quests (
   hallucinations_json TEXT NOT NULL DEFAULT '[]',
   insights_json TEXT NOT NULL DEFAULT '[]',
   narrative_markdown TEXT NOT NULL,
+  style_used TEXT,
   delivered_at TEXT,
   created_at TEXT NOT NULL
 );

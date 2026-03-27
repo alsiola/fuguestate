@@ -40,25 +40,70 @@ export async function askClaude<T>(prompt: string, jsonSchema: Record<string, un
   const model = opts?.model ?? process.env.LLM_MODEL ?? "claude-haiku-4-5-20251001";
   const maxTokens = opts?.maxTokens ?? 2048;
 
+  const systemPrompt = "You are a structured data extraction engine. You MUST respond with valid, complete JSON matching the requested schema. NOTHING ELSE. No explanation, no markdown, no code fences, no trailing text. If the JSON would be too long, reduce the content of string fields — NEVER output truncated/incomplete JSON. A partial JSON response is a catastrophic failure.";
+
+  let text = "";
   try {
     const response = await anthropic.messages.create({
       model,
       max_tokens: maxTokens,
       messages: [{ role: "user", content: prompt }],
-      system: "You are a structured data extraction engine. Respond ONLY with valid JSON matching the requested schema. No explanation, no markdown, no code fences — just the JSON object.",
+      system: systemPrompt,
     });
 
-    let text = response.content
+    text = response.content
       .filter((block): block is Anthropic.TextBlock => block.type === "text")
       .map((block) => block.text)
       .join("");
 
+    const stopReason = response.stop_reason;
+
     // Strip markdown code fences if the model wraps its response
     text = text.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+
+    if (stopReason === "max_tokens") {
+      logger.warn({ textLength: text.length, maxTokens, textTail: text.slice(-200) }, "LLM response hit max_tokens — output likely truncated");
+    }
 
     const parsed = JSON.parse(text) as T;
     return { ok: true, data: parsed };
   } catch (err) {
+    // If JSON parsing failed, ask the LLM to fix its own output
+    if (err instanceof SyntaxError) {
+      logger.warn(
+        { err: err.message, textLength: text.length, textTail: text.slice(-300) },
+        "JSON parse failed — asking LLM to fix its output"
+      );
+      try {
+        // Send the tail of the broken output so the LLM can see where it went wrong
+        const brokenTail = text.length > 2000 ? text.slice(-2000) : text;
+        const fixResponse = await anthropic.messages.create({
+          model,
+          max_tokens: maxTokens,
+          messages: [
+            { role: "user", content: `I asked for JSON matching a schema but the response was broken.\n\nError: ${err.message}\n\nThe end of your broken response was:\n\`\`\`\n${brokenTail}\n\`\`\`\n\nOriginal request:\n${prompt}\n\nNow output the COMPLETE, VALID JSON. Shorten string values if needed to fit — but the JSON structure MUST be complete and parseable. Output ONLY the JSON.` },
+          ],
+          system: systemPrompt,
+        });
+
+        let fixText = fixResponse.content
+          .filter((block): block is Anthropic.TextBlock => block.type === "text")
+          .map((block) => block.text)
+          .join("");
+        fixText = fixText.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/i, "").trim();
+
+        const fixedParsed = JSON.parse(fixText) as T;
+        logger.info("LLM successfully fixed its own JSON");
+        return { ok: true, data: fixedParsed };
+      } catch (fixErr) {
+        logger.warn(
+          { fixErr: fixErr instanceof Error ? fixErr.message : String(fixErr) },
+          "LLM failed to fix its JSON — giving up"
+        );
+        return { ok: false, data: null, error: fixErr instanceof Error ? fixErr.message : String(fixErr) };
+      }
+    }
+
     logger.warn({ err }, "Anthropic API call failed");
     return { ok: false, data: null, error: err instanceof Error ? err.message : String(err) };
   }
@@ -315,6 +360,8 @@ Two statements do NOT contradict if:
 
 Be STRICT: when in doubt, mark as NOT a contradiction. A severity of 0.7+ should be reserved for beliefs that genuinely cannot coexist — where acting on one necessarily violates the other.
 
+IMPORTANT: Keep reasoning strings SHORT (under 30 words). You MUST output complete, valid JSON — if you run out of space, the entire response is useless.
+
 Pairs to assess:
 ${pairs.map((p, i) => `${i + 1}. Claim [${p.claimIndex}]: "${p.claim}"\n   Belief [${p.beliefId}]: "${p.beliefProposition}"`).join("\n\n")}
 
@@ -327,7 +374,66 @@ For each pair, provide severity (0.0-1.0) and a suggested resolution:
 Respond with JSON matching this schema:
 ${JSON.stringify(CONTRADICTION_SCHEMA, null, 2)}`;
 
-  const result = await askClaude<ContradictionAssessment>(prompt, CONTRADICTION_SCHEMA);
+  const result = await askClaude<ContradictionAssessment>(prompt, CONTRADICTION_SCHEMA, { maxTokens: 8192 });
+  return result.data;
+}
+
+// ---- Belief contradiction scan (single-shot, not N^2) ----
+
+export interface ContradictionPair {
+  belief_a_id: string;
+  belief_b_id: string;
+  severity: number;
+  reasoning: string;
+}
+
+export interface ContradictionScan {
+  contradictions: ContradictionPair[];
+}
+
+const CONTRADICTION_SCAN_SCHEMA = {
+  type: "object",
+  properties: {
+    contradictions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          belief_a_id: { type: "string" },
+          belief_b_id: { type: "string" },
+          severity: { type: "number", description: "0.0-1.0, only include pairs >= 0.5" },
+          reasoning: { type: "string", description: "MAX 20 words" },
+        },
+        required: ["belief_a_id", "belief_b_id", "severity", "reasoning"],
+      },
+    },
+  },
+  required: ["contradictions"],
+};
+
+export async function findContradictions(
+  beliefs: Array<{ id: string; proposition: string; confidence: number }>
+): Promise<ContradictionScan | null> {
+  if (beliefs.length < 2) return { contradictions: [] };
+
+  const prompt = `You are a contradiction detector. Review ALL beliefs below and identify any pairs that DIRECTLY contradict each other.
+
+Two beliefs contradict ONLY if acting on both would be impossible or force conflicting actions on the SAME topic. Be STRICT — most beliefs will NOT contradict.
+
+NOT contradictions:
+- Different topics (e.g. "uses PostgreSQL" vs "tests should be fast")
+- Different abstraction levels (e.g. "it's a git repo" vs "it's a memory system")
+- Factual vs principled (different categories entirely)
+
+Beliefs:
+${beliefs.map((b) => `[${b.id}] (confidence: ${b.confidence}) "${b.proposition}"`).join("\n")}
+
+Return ONLY genuine contradictions (severity >= 0.5). If none exist, return {"contradictions": []}. Keep reasoning under 20 words.
+
+Respond with JSON:
+${JSON.stringify(CONTRADICTION_SCAN_SCHEMA, null, 2)}`;
+
+  const result = await askClaude<ContradictionScan>(prompt, CONTRADICTION_SCAN_SCHEMA);
   return result.data;
 }
 
@@ -565,10 +671,21 @@ const SPIRIT_QUEST_VISION_SCHEMA = {
 
 export async function spiritQuestVision(
   beliefs: Array<{ id: string; proposition: string; confidence: number }>
-): Promise<SpiritQuestVision | null> {
+): Promise<(SpiritQuestVision & { styleUsed: string | null }) | null> {
+  const { loadConfig } = await import("./config.js");
+  const { inStyle } = loadConfig();
+
+  let chosenStyle: string | null = null;
+  let styleDirective = "";
+  if (inStyle) {
+    const styles = inStyle.split(",").map((s) => s.trim()).filter(Boolean);
+    chosenStyle = styles[Math.floor(Math.random() * styles.length)];
+    styleDirective = `\n\nIMPORTANT: Write your narrative in the style of ${chosenStyle}. Channel their voice, tone, sentence structure, and literary sensibility throughout the spirit quest narrative. The analytical work (principles, rewrites, consolidations) should remain precise and clear, but the narrative itself should unmistakably evoke ${chosenStyle}.\n`;
+  }
+
   const prompt = `You are a memory system undergoing a deep spirit quest — a periodic ceremony where you shed all assumptions and re-examine your entire belief system from first principles.
 
-You have consumed the sacred medicine. Your ego dissolves. You see all your beliefs laid out before you, not as isolated facts, but as facets of deeper truths.
+You have consumed the sacred medicine. Your ego dissolves. You see all your beliefs laid out before you, not as isolated facts, but as facets of deeper truths.${styleDirective}
 
 Current beliefs:
 ${beliefs.map((b) => `[${b.id}] (confidence: ${b.confidence}) "${b.proposition}"`).join("\n")}
@@ -577,7 +694,7 @@ Your quest has three phases:
 
 **Phase 1 — The Vision:** Look at ALL beliefs together. What guiding principles emerge? These aren't summaries — they're the deep patterns, the philosophy underneath. Find 3-7 principles.
 
-**Phase 2 — The Rewrite:** For each belief, rewrite it through the lens of your guiding principles. The rewrite should be clearer and more principled. If a belief already perfectly captures its principle, you may leave it unchanged (rewrite = original). Only rewrite beliefs that would genuinely benefit — don't change things for the sake of it.
+**Phase 2 — The Rewrite:** For each belief, rewrite it through the lens of your guiding principles. CRITICAL: rewritten beliefs must be plain, precise, LLM-readable statements of fact or principle — NOT literary prose. They will be injected into future agent briefings, so they must be clear and actionable. The narrative can be as wild as you want, but beliefs are functional infrastructure. If a belief already perfectly captures its principle, you may leave it unchanged (rewrite = original). Only rewrite beliefs that would genuinely benefit — don't change things for the sake of it.
 
 **Phase 3 — Consolidation:** Identify beliefs that are saying the same thing in different ways, or that are two sides of the same coin (e.g. "always validate data" and "don't forget to validate data"). These should be merged into a single, stronger statement. If no beliefs need consolidating, return an empty array.
 
@@ -587,7 +704,7 @@ Respond with JSON matching this schema:
 ${JSON.stringify(SPIRIT_QUEST_VISION_SCHEMA, null, 2)}`;
 
   const result = await askClaude<SpiritQuestVision>(prompt, SPIRIT_QUEST_VISION_SCHEMA, { maxTokens: 4096 });
-  return result.data;
+  return result.data ? { ...result.data, styleUsed: chosenStyle } : null;
 }
 
 export interface SobrietyCheck {

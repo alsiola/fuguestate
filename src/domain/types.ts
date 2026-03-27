@@ -168,6 +168,7 @@ export interface SpiritQuestRow {
   hallucinations_json: string;
   insights_json: string;
   narrative_markdown: string;
+  style_used: string | null;
   delivered_at: string | null;
   created_at: string;
 }

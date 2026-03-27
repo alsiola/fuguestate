@@ -25,6 +25,13 @@ export function registerUiApi(app: FastifyInstance) {
     return { events, episodes, beliefs, openLoops, dreams, quests, procedures, uptime: process.uptime() };
   });
 
+  // Briefing
+  app.get("/api/briefing", async () => {
+    const { generateBriefing } = await import("../domain/briefing/index.js");
+    const markdown = generateBriefing({ scope: "session" });
+    return { markdown };
+  });
+
   // Dreams
   app.get("/api/dreams", async (req) => {
     const db = getDb();

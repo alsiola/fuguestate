@@ -2,7 +2,8 @@ import crypto from "node:crypto";
 import { getDb } from "../db/client.js";
 import { getBelief, retireBelief, createBelief, getActiveBeliefs, updateBeliefConfidence } from "../domain/beliefs/index.js";
 import { resolveOpenLoop, getOpenLoop } from "../domain/openLoops/index.js";
-import { checkConflicts, createConflictLoop } from "../domain/conflict/index.js";
+import { createConflictLoop } from "../domain/conflict/index.js";
+import { findContradictions } from "../app/llm.js";
 import { resolveConflictDream, deduplicateBeliefs, spiritQuestVision, sobrietyCheck } from "../app/llm.js";
 import { logger } from "../app/logger.js";
 import type { DreamRow, SpiritQuestRow, OpenLoopRow } from "../domain/types.js";
@@ -63,16 +64,27 @@ async function fallingAsleep(): Promise<number> {
     return 0;
   }
 
-  // Test each belief against all others
-  const propositions = beliefs.map((b) => b.proposition);
-  const conflicts = await checkConflicts({ claims: propositions });
+  // Single-shot: send all beliefs to LLM and ask for contradictions
+  const scan = await findContradictions(beliefs.map((b) => ({ id: b.id, proposition: b.proposition, confidence: b.confidence })));
+  if (!scan || scan.contradictions.length === 0) return 0;
 
+  const beliefMap = new Map(beliefs.map((b) => [b.id, b]));
   let created = 0;
-  for (const conflict of conflicts) {
-    if (conflict.severity >= 0.7) {
-      createConflictLoop(conflict, "project");
-      created++;
-    }
+  for (const c of scan.contradictions) {
+    if (c.severity < 0.7) continue;
+    const a = beliefMap.get(c.belief_a_id);
+    const b = beliefMap.get(c.belief_b_id);
+    if (!a || !b) continue;
+    createConflictLoop({
+      claim: a.proposition,
+      conflictsWith: b.proposition,
+      sourceType: "belief",
+      sourceId: c.belief_b_id,
+      severity: c.severity,
+      suggestedResolution: "escalate",
+      suggestedCheck: c.reasoning,
+    }, "project");
+    created++;
   }
 
   return created;
@@ -394,8 +406,8 @@ export async function runSpiritQuest(): Promise<void> {
   const id = crypto.randomUUID();
 
   db.prepare(
-    `INSERT INTO spirit_quests (id, guiding_principles_json, beliefs_before_json, beliefs_after_json, rewrites_json, hallucinations_json, insights_json, narrative_markdown, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO spirit_quests (id, guiding_principles_json, beliefs_before_json, beliefs_after_json, rewrites_json, hallucinations_json, insights_json, narrative_markdown, style_used, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     JSON.stringify(vision.guiding_principles),
@@ -405,6 +417,7 @@ export async function runSpiritQuest(): Promise<void> {
     JSON.stringify(hallucinations),
     JSON.stringify(insights),
     vision.narrative,
+    vision.styleUsed ?? null,
     new Date().toISOString()
   );
 

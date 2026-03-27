@@ -42,7 +42,10 @@ export function SpiritQuestsPage() {
                 <Card className="hover:border-amber-500/30 transition-all hover:quest-glow cursor-pointer group">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
-                      <Badge variant="quest">Spirit Quest</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="quest">Spirit Quest</Badge>
+                        {quest.style_used && <Badge variant="secondary">{quest.style_used}</Badge>}
+                      </div>
                       <span className="text-xs text-muted-foreground">{timeAgo(quest.created_at)}</span>
                     </div>
 

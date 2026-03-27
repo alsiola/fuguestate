@@ -8,6 +8,7 @@ export interface Config {
   synthesisIntervalMs: number;
   dreamIntervalMs: number;
   sleepCyclesPerQuest: number;
+  inStyle: string;
   briefingTtlSeconds: number;
   maxBriefingItems: number;
   maxRetrievalResults: number;
@@ -31,6 +32,7 @@ export function loadConfig(): Config {
     maxBriefingItems: parseInt(process.env.MAX_BRIEFING_ITEMS || "10", 10),
     maxRetrievalResults: parseInt(process.env.MAX_RETRIEVAL_RESULTS || "20", 10),
     hookTimeoutMs: parseInt(process.env.HOOK_TIMEOUT_MS || "100", 10),
+    inStyle: process.env.IN_STYLE || "",
     llmModel: process.env.LLM_MODEL || "haiku",
     llmTimeoutMs: parseInt(process.env.LLM_TIMEOUT_MS || "30000", 10),
   };

@@ -27,8 +27,20 @@ export async function checkConflicts(params: ConflictCheckParams): Promise<Confl
 
   if (pairs.length === 0) return [];
 
-  const llmResult = await assessContradictions(pairs);
-  if (!llmResult) return [];
+  // Batch into chunks of max 20 pairs to avoid overwhelming the LLM
+  const BATCH_SIZE = 20;
+  const allAssessments: Array<{ claim_index: number; belief_id: string; is_contradiction: boolean; severity: number; reasoning: string; suggested_resolution: string }> = [];
+
+  for (let i = 0; i < pairs.length; i += BATCH_SIZE) {
+    const batch = pairs.slice(i, i + BATCH_SIZE);
+    const llmResult = await assessContradictions(batch);
+    if (llmResult) {
+      allAssessments.push(...llmResult.pairs);
+    }
+  }
+
+  const llmResult = { pairs: allAssessments };
+  if (llmResult.pairs.length === 0) return [];
 
   const conflicts: Conflict[] = [];
   for (const assessment of llmResult.pairs) {
@@ -40,7 +52,7 @@ export async function checkConflicts(params: ConflictCheckParams): Promise<Confl
         sourceType: "belief",
         sourceId: assessment.belief_id,
         severity: assessment.severity,
-        suggestedResolution: assessment.suggested_resolution,
+        suggestedResolution: assessment.suggested_resolution as Conflict["suggestedResolution"],
         suggestedCheck: `Verify: "${params.claims[assessment.claim_index]}" vs existing belief: "${belief?.proposition ?? assessment.belief_id}" — ${assessment.reasoning}`,
       });
     }
