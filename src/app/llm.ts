@@ -733,7 +733,7 @@ Write your spirit quest narrative — vivid, first-person, psychedelic — descr
 Respond with JSON matching this schema:
 ${JSON.stringify(SPIRIT_QUEST_VISION_SCHEMA, null, 2)}`;
 
-  const result = await askClaude<SpiritQuestVision>(prompt, SPIRIT_QUEST_VISION_SCHEMA, { maxTokens: 4096 });
+  const result = await askClaude<SpiritQuestVision>(prompt, SPIRIT_QUEST_VISION_SCHEMA, { maxTokens: 8192 });
   return result.data ? { ...result.data, styleUsed: chosenStyle, drugUsed: chosenDrug } : null;
 }
 
@@ -797,6 +797,6 @@ ${rewrites.map((r, i) => `${i + 1}. [${r.kind ?? "rewrite"}] Original: "${r.orig
 Respond with JSON matching this schema:
 ${JSON.stringify(SOBRIETY_CHECK_SCHEMA, null, 2)}`;
 
-  const result = await askClaude<SobrietyCheck>(prompt, SOBRIETY_CHECK_SCHEMA);
+  const result = await askClaude<SobrietyCheck>(prompt, SOBRIETY_CHECK_SCHEMA, { maxTokens: 8192 });
   return result.data;
 }
