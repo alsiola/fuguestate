@@ -254,10 +254,13 @@ export const MCP_PROMPTS = [
 export function registerMcpRoutes(app: FastifyInstance): void {
   // MCP tool dispatch via HTTP (for the stdio shim to call)
   app.post("/mcp/tools/call", async (req, reply) => {
-    const { name, arguments: args } = req.body as { name: string; arguments: Record<string, unknown> };
+    const { name, arguments: rawArgs } = req.body as { name: string; arguments: Record<string, unknown> };
+    // Extract _cwd injected by the stdio shim, don't pass it to tool handlers
+    const { _cwd, ...args } = rawArgs;
+    const cwd = typeof _cwd === "string" ? _cwd : undefined;
 
     try {
-      const result = await dispatchTool(name, args);
+      const result = await dispatchTool(name, args, cwd);
       return reply.send({ content: [{ type: "text", text: typeof result === "string" ? result : JSON.stringify(result, null, 2) }] });
     } catch (err) {
       logger.error({ err, tool: name }, "MCP tool error");
@@ -305,7 +308,7 @@ export function registerMcpRoutes(app: FastifyInstance): void {
   });
 }
 
-async function dispatchTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+async function dispatchTool(name: string, args: Record<string, unknown>, cwd?: string): Promise<unknown> {
   switch (name) {
     case "memory_search": return handleSearch(args);
     case "memory_get_related_episodes": return handleGetRelatedEpisodes(args);
@@ -316,11 +319,11 @@ async function dispatchTool(name: string, args: Record<string, unknown>): Promis
     case "memory_suggest_next_checks": return handleSuggestNextChecks(args);
     case "memory_explain_prior_decision": return handleExplainPriorDecision(args);
     case "memory_record_manual_note": return handleRecordManualNote(args);
-    case "memory_pin_fact": return handlePinFact(args);
+    case "memory_pin_fact": return handlePinFact(args, cwd);
     case "memory_retire_fact": return handleRetireFact(args);
     case "memory_mark_resolution": return handleMarkResolution(args);
     case "memory_reflect_on_task": return handleReflectOnTask(args);
-    case "memory_extract_procedure": return handleExtractProcedure(args);
+    case "memory_extract_procedure": return handleExtractProcedure(args, cwd);
     case "memory_get_procedure": return handleGetProcedure(args);
     default: throw new Error(`Unknown tool: ${name}`);
   }

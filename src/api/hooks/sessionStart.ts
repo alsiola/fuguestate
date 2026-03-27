@@ -5,7 +5,7 @@ import { generateBriefing, getCachedBriefing, cacheBriefing } from "../../domain
 import { getUndeliveredDreams, markDreamsDelivered, getUndeliveredQuests, markQuestsDelivered } from "../../workers/dream.js";
 import { loadConfig } from "../../app/config.js";
 import { logger } from "../../app/logger.js";
-import { setProjectScope } from "../../app/projectScope.js";
+import { scopeFromCwd } from "../../app/projectScope.js";
 
 interface SessionStartBody {
   session_id?: string;
@@ -36,14 +36,14 @@ export async function handleSessionStart(req: FastifyRequest, reply: FastifyRepl
 
     // Init working memory and project scope
     setWorkingMemory(sessionId, "session_start", { cwd: body.cwd, ts });
-    if (body.cwd) setProjectScope(body.cwd);
+    // Scope is now derived at point-of-use from cwd (via shim or hook payload)
 
     // Generate or fetch cached briefing
     const config = loadConfig();
     const cacheKey = `briefing:session:${sessionId}`;
     let briefing = getCachedBriefing(cacheKey, config.briefingTtlSeconds);
     if (!briefing) {
-      briefing = generateBriefing({ scope: "session", sessionId });
+      briefing = generateBriefing({ scope: "session", sessionId, scopeKey: body.cwd ? scopeFromCwd(body.cwd) : undefined });
       if (briefing !== "No relevant memory available yet.") {
         cacheBriefing(cacheKey, "session_briefing", briefing, config.briefingTtlSeconds);
       }

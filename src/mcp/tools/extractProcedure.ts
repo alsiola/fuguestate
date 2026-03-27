@@ -1,12 +1,15 @@
 import { getEpisode } from "../../domain/episodes/index.js";
 import { createProcedure } from "../../domain/procedures/index.js";
-import { getProjectScope } from "../../app/projectScope.js";
+import { scopeFromCwd, requireScope } from "../../app/projectScope.js";
 
-export function handleExtractProcedure(args: Record<string, unknown>) {
+export function handleExtractProcedure(args: Record<string, unknown>, cwd?: string) {
   const topic = args.topic as string;
   const episodeIds = (args.episodeIds as string[] | undefined) ?? [];
   const providedSteps = args.steps as string | undefined;
   const triggerDescription = args.triggerDescription as string | undefined;
+  const scopeKey = cwd ? scopeFromCwd(cwd) : undefined;
+
+  const resolvedScope = requireScope(scopeKey, "memory_extract_procedure");
 
   // Gather episode data if IDs provided
   const episodes = episodeIds
@@ -50,7 +53,7 @@ export function handleExtractProcedure(args: Record<string, unknown>) {
     successSignals,
     failureSmells,
     scopeType: "project",
-    scopeKey: getProjectScope(),
+    scopeKey: resolvedScope,
     confidence: episodes.length > 0 ? 0.6 : 0.5,
     sourceEpisodeIds: episodeIds,
   });

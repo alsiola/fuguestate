@@ -3,7 +3,7 @@ import { createOpenLoop, resolveOpenLoop } from "../domain/openLoops/index.js";
 import { createBelief } from "../domain/beliefs/index.js";
 import { createProcedure } from "../domain/procedures/index.js";
 import { clusterEpisodeTitles, askClaude } from "../app/llm.js";
-import { getProjectScope } from "../app/projectScope.js";
+import { scopeFromCwd } from "../app/projectScope.js";
 import { logger } from "../app/logger.js";
 import type { EpisodeRow, OpenLoopRow } from "../domain/types.js";
 
@@ -68,21 +68,35 @@ async function findRepeatedFailures(): Promise<void> {
 async function analyzeFailurePatterns(toolName: string, failCount: number, loopId: string): Promise<void> {
   const db = getDb();
 
-  // Gather the actual failure details
+  // Gather the actual failure details + session cwd for scope
   const failures = db
     .prepare(
-      `SELECT ts, JSON_EXTRACT(payload_json, '$.errorSummary') as error,
-              JSON_EXTRACT(payload_json, '$.input') as input
-       FROM events
-       WHERE event_type = 'tool_failed'
-       AND JSON_EXTRACT(payload_json, '$.toolName') = ?
-       AND ts > datetime('now', '-7 days')
-       ORDER BY ts DESC
+      `SELECT e.ts, JSON_EXTRACT(e.payload_json, '$.errorSummary') as error,
+              JSON_EXTRACT(e.payload_json, '$.input') as input,
+              JSON_EXTRACT(e.payload_json, '$.cwd') as cwd,
+              (SELECT JSON_EXTRACT(s.payload_json, '$.cwd')
+               FROM events s
+               WHERE s.session_id = e.session_id
+               AND s.event_type = 'session_started'
+               ORDER BY s.ts DESC LIMIT 1) as session_cwd
+       FROM events e
+       WHERE e.event_type = 'tool_failed'
+       AND JSON_EXTRACT(e.payload_json, '$.toolName') = ?
+       AND e.ts > datetime('now', '-7 days')
+       ORDER BY e.ts DESC
        LIMIT 10`
     )
-    .all(toolName) as Array<{ ts: string; error: string; input: string }>;
+    .all(toolName) as Array<{ ts: string; error: string; input: string; cwd: string | null; session_cwd: string | null }>;
 
   if (failures.length < 3) return;
+
+  // Derive project scope from the session that produced these failures
+  const derivedCwd = failures.find(f => f.session_cwd || f.cwd);
+  const scopeKey = scopeFromCwd(derivedCwd?.session_cwd ?? derivedCwd?.cwd ?? "");
+  if (!scopeKey) {
+    logger.warn({ toolName }, "Cannot determine project scope for failure analysis — skipping");
+    return;
+  }
 
   const failureSummaries = failures.map((f, i) =>
     `${i + 1}. [${f.ts}] Error: ${(f.error ?? "").slice(0, 200)}\n   Input: ${(f.input ?? "").slice(0, 150)}`
@@ -139,7 +153,7 @@ Produce:
     stepsMarkdown,
     failureSmells: [root_cause],
     scopeType: "project",
-    scopeKey: getProjectScope(),
+    scopeKey,
     confidence: 0.7,
   });
 
@@ -147,7 +161,7 @@ Produce:
   createBelief({
     proposition: `${toolName} failures are typically caused by: ${root_cause}. Prevention: ${prevention_steps[0] ?? "verify before executing"}.`,
     scopeType: "project",
-    scopeKey: getProjectScope(),
+    scopeKey,
     confidence: 0.7 + Math.min(failCount * 0.03, 0.2), // higher confidence with more evidence
     evidenceFor: [`Observed ${failCount} failures in 7 days with common pattern`],
   });
@@ -191,7 +205,7 @@ async function findRediscoveredPatterns(): Promise<void> {
 
   // Get all closed episode titles for semantic clustering
   const episodes = db
-    .prepare("SELECT title FROM episodes WHERE status = 'closed' ORDER BY created_at DESC LIMIT 100")
+    .prepare("SELECT title FROM episodes WHERE status = 'closed' ORDER BY started_at DESC LIMIT 100")
     .all() as Array<{ title: string }>;
 
   if (episodes.length < 3) return;

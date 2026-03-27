@@ -8,6 +8,7 @@
  */
 
 const AMTS_BASE_URL = process.env.AMTS_BASE_URL || "http://127.0.0.1:4317";
+const SHIM_CWD = process.cwd();
 
 const readline = require("readline");
 const http = require("http");
@@ -99,7 +100,7 @@ async function handleMessage(msg) {
 
       case "tools/call": {
         const { name, arguments: args } = params;
-        const result = await httpRequest("/mcp/tools/call", "POST", { name, arguments: args });
+        const result = await httpRequest("/mcp/tools/call", "POST", { name, arguments: { ...args, _cwd: SHIM_CWD } });
         if (result.error) {
           sendError(id, -32000, result.error.message);
         } else {

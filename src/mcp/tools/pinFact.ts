@@ -1,19 +1,21 @@
 import { createBelief } from "../../domain/beliefs/index.js";
 import { checkConflicts, createConflictLoop } from "../../domain/conflict/index.js";
-import { getProjectScope } from "../../app/projectScope.js";
+import { scopeFromCwd, requireScope } from "../../app/projectScope.js";
 import type { ScopeType } from "../../domain/types.js";
 
-export async function handlePinFact(args: Record<string, unknown>) {
+export async function handlePinFact(args: Record<string, unknown>, cwd?: string) {
   const proposition = args.proposition as string;
   const scope = (args.scope as ScopeType) ?? "project";
   const confidence = (args.confidence as number) ?? 0.9;
   const reason = args.reason as string;
-  const scopeKey = (args.scopeKey as string) ?? getProjectScope();
+  const scopeKey = (args.scopeKey as string) || (cwd ? scopeFromCwd(cwd) : undefined);
+
+  const resolvedScope = requireScope(scopeKey, "memory_pin_fact");
 
   const belief = createBelief({
     proposition,
     scopeType: scope,
-    scopeKey,
+    scopeKey: resolvedScope,
     confidence,
     evidenceFor: [reason],
   });

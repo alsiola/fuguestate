@@ -4,7 +4,6 @@ import { getActiveBeliefs } from "../beliefs/index.js";
 import { getOpenLoops } from "../openLoops/index.js";
 import { getRecentEpisodes } from "../episodes/index.js";
 import { getProceduresByScope } from "../procedures/index.js";
-import { getProjectScope } from "../../app/projectScope.js";
 import type { CacheRow, ScopeType } from "../types.js";
 
 export interface BriefingParams {
@@ -12,6 +11,7 @@ export interface BriefingParams {
   sessionId?: string;
   taskHint?: string;
   maxItems?: number;
+  scopeKey?: string;
 }
 
 export function generateBriefing(params: BriefingParams): string {
@@ -20,7 +20,7 @@ export function generateBriefing(params: BriefingParams): string {
 
   // Key beliefs — include both project and user scope, filtered to current project
   const limit = Math.min(maxItems, 10);
-  const scopeKey = getProjectScope() || undefined;
+  const scopeKey = params.scopeKey || undefined;
   const projectBeliefs = getActiveBeliefs("project", scopeKey, limit);
   const userBeliefs = getActiveBeliefs("user", scopeKey, limit);
   const seen = new Set(projectBeliefs.map(b => b.id));
