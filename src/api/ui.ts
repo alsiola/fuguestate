@@ -1,11 +1,15 @@
 import type { FastifyInstance } from "fastify";
 import { getDb } from "../db/client.js";
+import { updateBeliefConfidence, retireBelief, addEvidenceFor, addEvidenceAgainst } from "../domain/beliefs/index.js";
+import { resolveOpenLoop, dismissOpenLoop } from "../domain/openLoops/index.js";
+import { closeEpisode } from "../domain/episodes/index.js";
+import { logger } from "../app/logger.js";
 
 export function registerUiApi(app: FastifyInstance) {
   // CORS for dev (vite dev server on different port)
   app.addHook("onRequest", async (req, reply) => {
     reply.header("Access-Control-Allow-Origin", "*");
-    reply.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+    reply.header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
     reply.header("Access-Control-Allow-Headers", "Content-Type");
     if (req.method === "OPTIONS") {
       return reply.status(204).send();
@@ -233,5 +237,85 @@ export function registerUiApi(app: FastifyInstance) {
       .slice(0, lim);
 
     return merged;
+  });
+
+  // ---- Interactive API ----
+
+  // Beliefs: update confidence
+  app.patch("/api/beliefs/:id/confidence", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const { confidence } = req.body as { confidence: number };
+    if (typeof confidence !== "number" || confidence < 0 || confidence > 1) {
+      return reply.status(400).send({ error: "confidence must be a number between 0 and 1" });
+    }
+    updateBeliefConfidence(id, confidence);
+    return { ok: true };
+  });
+
+  // Beliefs: retire
+  app.post("/api/beliefs/:id/retire", async (req) => {
+    const { id } = req.params as { id: string };
+    const { reason } = req.body as { reason?: string };
+    const result = retireBelief(id, reason ?? "Retired via UI");
+    return { ok: !!result };
+  });
+
+  // Beliefs: add evidence
+  app.post("/api/beliefs/:id/evidence", async (req) => {
+    const { id } = req.params as { id: string };
+    const { type, evidence } = req.body as { type: "for" | "against"; evidence: string };
+    if (type === "for") addEvidenceFor(id, evidence);
+    else addEvidenceAgainst(id, evidence);
+    return { ok: true };
+  });
+
+  // Episodes: close
+  app.post("/api/episodes/:id/close", async (req) => {
+    const { id } = req.params as { id: string };
+    const { outcome, lessons } = req.body as { outcome?: string; lessons?: string[] };
+    const result = closeEpisode(id, outcome ?? "Closed via UI", lessons);
+    return { ok: !!result };
+  });
+
+  // Open Loops: resolve
+  app.post("/api/open-loops/:id/resolve", async (req) => {
+    const { id } = req.params as { id: string };
+    const { resolution } = req.body as { resolution?: string };
+    const result = resolveOpenLoop(id, resolution ?? "Resolved via UI");
+    return { ok: !!result };
+  });
+
+  // Open Loops: dismiss
+  app.post("/api/open-loops/:id/dismiss", async (req) => {
+    const { id } = req.params as { id: string };
+    dismissOpenLoop(id);
+    return { ok: true };
+  });
+
+  // Open Loops: run auto-resolution now
+  app.post("/api/open-loops/resolve-now", async () => {
+    const { resolveRecurringPatterns } = await import("../workers/synthesise.js");
+    await resolveRecurringPatterns();
+    return { ok: true };
+  });
+
+  // Dreams: trigger sleep cycle
+  app.post("/api/trigger/sleep", async () => {
+    const { runDream } = await import("../workers/dream.js");
+    await runDream();
+    return { ok: true };
+  });
+
+  // Dreams: trigger spirit quest
+  app.post("/api/trigger/spirit-quest", async (req) => {
+    const { runDream, runSpiritQuest } = await import("../workers/dream.js");
+    const body = req.body as { style?: string } | undefined;
+    await runDream();
+    await runSpiritQuest(body?.style);
+    const { getUndeliveredDreams, getUndeliveredQuests } = await import("../workers/dream.js");
+    return {
+      dreams: getUndeliveredDreams().length,
+      quests: getUndeliveredQuests().length,
+    };
   });
 }

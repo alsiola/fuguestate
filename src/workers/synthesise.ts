@@ -283,7 +283,7 @@ async function findRediscoveredPatterns(): Promise<void> {
  * Finds loops that have been open for at least 1 hour, gathers related
  * episodes, asks the LLM to synthesize a procedure, then resolves the loop.
  */
-async function resolveRecurringPatterns(): Promise<void> {
+export async function resolveRecurringPatterns(): Promise<void> {
   const db = getDb();
 
   const openPatternLoops = db
