@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  amts:
+    build: .
+    container_name: amts
+    ports:
+      - "4317:4317"
+    volumes:
+      - ./data:/data
+      - ./config:/config:ro
+    env_file:
+      - .env
+    environment:
+      PORT: "4317"
+      DB_PATH: "/data/amts.sqlite"
+      LOG_LEVEL: "info"
+      NODE_ENV: "production"
+    restart: unless-stopped

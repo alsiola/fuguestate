@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "amts": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["./scripts/amts-mcp-stdio-shim.cjs"],
+      "env": {
+        "AMTS_BASE_URL": "http://127.0.0.1:4317"
+      }
+    }
+  }
+}
