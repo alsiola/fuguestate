@@ -1,12 +1,14 @@
-# memit
+# FugueState
 
 A memory system for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that watches everything your agent does, forms beliefs about how you work, lies awake at night worrying about contradictions, dreams up resolutions, and occasionally goes on ayahuasca-fuelled spirit quests to find deeper meaning in its own belief system.
 
 You know, normal software.
 
+> Internal codenames: `memit` (directory/project), `amts` (service/database)
+
 ## What it does
 
-memit runs as a sidecar to Claude Code. It watches, remembers, and thinks.
+FugueState runs as a sidecar to Claude Code. It watches, remembers, and thinks.
 
 **During the day** it records every interaction — prompts, tool calls, successes, failures — and builds up beliefs about your preferences, your codebase, and how work should be done. When you tell it something ("I prefer TypeScript", "never restart Docker without asking me"), it pins that as a belief with a confidence score.
 
