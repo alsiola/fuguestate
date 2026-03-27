@@ -44,6 +44,7 @@ export function SpiritQuestsPage() {
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
                         <Badge variant="quest">Spirit Quest</Badge>
+                        {quest.drug_used && <Badge variant="dream">{quest.drug_used}</Badge>}
                         {quest.style_used && <Badge variant="secondary">{quest.style_used}</Badge>}
                         {!quest.delivered_at && <Badge variant="default" className="animate-pulse bg-amber-500/80">new</Badge>}
                       </div>

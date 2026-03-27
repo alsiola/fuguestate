@@ -475,8 +475,8 @@ export async function runSpiritQuest(styleOverride?: string): Promise<void> {
   const id = crypto.randomUUID();
 
   db.prepare(
-    `INSERT INTO spirit_quests (id, guiding_principles_json, beliefs_before_json, beliefs_after_json, rewrites_json, hallucinations_json, insights_json, narrative_markdown, style_used, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO spirit_quests (id, guiding_principles_json, beliefs_before_json, beliefs_after_json, rewrites_json, hallucinations_json, insights_json, narrative_markdown, style_used, drug_used, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     JSON.stringify(vision.guiding_principles),
@@ -487,6 +487,7 @@ export async function runSpiritQuest(styleOverride?: string): Promise<void> {
     JSON.stringify(insights),
     vision.narrative,
     vision.styleUsed ?? null,
+    vision.drugUsed,
     new Date().toISOString()
   );
 

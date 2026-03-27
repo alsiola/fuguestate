@@ -48,6 +48,7 @@ export function SpiritQuestDetailPage() {
       <div>
         <div className="flex items-center gap-3 mb-2">
           <Badge variant="quest">Spirit Quest</Badge>
+          {quest.drug_used && <Badge variant="dream">{quest.drug_used}</Badge>}
           {quest.style_used && <Badge variant="secondary">{quest.style_used}</Badge>}
           <span className="text-sm text-muted-foreground">{formatDate(quest.created_at)}</span>
         </div>

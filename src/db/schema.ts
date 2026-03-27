@@ -155,6 +155,7 @@ CREATE TABLE IF NOT EXISTS spirit_quests (
   insights_json TEXT NOT NULL DEFAULT '[]',
   narrative_markdown TEXT NOT NULL,
   style_used TEXT,
+  drug_used TEXT NOT NULL DEFAULT 'ayahuasca',
   delivered_at TEXT,
   created_at TEXT NOT NULL
 );

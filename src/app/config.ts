@@ -9,6 +9,7 @@ export interface Config {
   dreamIntervalMs: number;
   sleepCyclesPerQuest: number;
   inStyle: string;
+  questDrugs: string;
   briefingTtlSeconds: number;
   maxBriefingItems: number;
   maxRetrievalResults: number;
@@ -33,6 +34,7 @@ export function loadConfig(): Config {
     maxRetrievalResults: parseInt(process.env.MAX_RETRIEVAL_RESULTS || "20", 10),
     hookTimeoutMs: parseInt(process.env.HOOK_TIMEOUT_MS || "100", 10),
     inStyle: process.env.IN_STYLE || "",
+    questDrugs: process.env.QUEST_DRUGS || "ayahuasca,psilocybin,mescaline,DMT,ketamine,LSD,peyote,ibogaine,salvia divinorum,2C-B",
     llmModel: process.env.LLM_MODEL || "haiku",
     llmTimeoutMs: parseInt(process.env.LLM_TIMEOUT_MS || "30000", 10),
   };

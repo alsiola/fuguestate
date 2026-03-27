@@ -20,6 +20,7 @@ export interface SpiritQuest {
   insights_json: string;
   narrative_markdown: string;
   style_used: string | null;
+  drug_used: string;
   delivered_at: string | null;
   created_at: string;
 }

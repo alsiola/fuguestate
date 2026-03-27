@@ -36,6 +36,10 @@ export function initDb(dbPath: string): Database.Database {
     db.exec("ALTER TABLE spirit_quests ADD COLUMN style_used TEXT");
     logger.info("Migration: added style_used column to spirit_quests");
   }
+  if (!cols.some((c) => c.name === "drug_used")) {
+    db.exec("ALTER TABLE spirit_quests ADD COLUMN drug_used TEXT NOT NULL DEFAULT 'ayahuasca'");
+    logger.info("Migration: added drug_used column to spirit_quests");
+  }
 
   logger.info({ dbPath }, "Database initialised");
   return db;

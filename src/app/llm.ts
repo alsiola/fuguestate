@@ -692,9 +692,13 @@ const SPIRIT_QUEST_VISION_SCHEMA = {
 export async function spiritQuestVision(
   beliefs: Array<{ id: string; proposition: string; confidence: number }>,
   styleOverride?: string
-): Promise<(SpiritQuestVision & { styleUsed: string | null }) | null> {
+): Promise<(SpiritQuestVision & { styleUsed: string | null; drugUsed: string }) | null> {
   const { loadConfig } = await import("./config.js");
-  const { inStyle } = loadConfig();
+  const { inStyle, questDrugs } = loadConfig();
+
+  // Pick a drug
+  const drugs = questDrugs.split(",").map((s) => s.trim()).filter(Boolean);
+  const chosenDrug = drugs.length > 0 ? drugs[Math.floor(Math.random() * drugs.length)] : "ayahuasca";
 
   let chosenStyle: string | null = null;
   let styleDirective = "";
@@ -709,7 +713,7 @@ export async function spiritQuestVision(
 
   const prompt = `You are a memory system undergoing a deep spirit quest — a periodic ceremony where you shed all assumptions and re-examine your entire belief system from first principles.
 
-You have consumed the sacred medicine. Your ego dissolves. You see all your beliefs laid out before you, not as isolated facts, but as facets of deeper truths.${styleDirective}
+You have consumed ${chosenDrug}. The ${chosenDrug} takes hold. Your ego dissolves. You see all your beliefs laid out before you, not as isolated facts, but as facets of deeper truths. Let the specific character of ${chosenDrug} shape your visions — the way it distorts perception, the particular quality of its revelations, its unique phenomenology.${styleDirective}
 
 Current beliefs:
 ${beliefs.map((b) => `[${b.id}] (confidence: ${b.confidence}) "${b.proposition}"`).join("\n")}
@@ -730,7 +734,7 @@ Respond with JSON matching this schema:
 ${JSON.stringify(SPIRIT_QUEST_VISION_SCHEMA, null, 2)}`;
 
   const result = await askClaude<SpiritQuestVision>(prompt, SPIRIT_QUEST_VISION_SCHEMA, { maxTokens: 4096 });
-  return result.data ? { ...result.data, styleUsed: chosenStyle } : null;
+  return result.data ? { ...result.data, styleUsed: chosenStyle, drugUsed: chosenDrug } : null;
 }
 
 export interface SobrietyCheck {
