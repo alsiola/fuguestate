@@ -1,10 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loading } from "@/components/Loading";
 import { Empty } from "@/components/Empty";
-import { apiFetch, timeAgo } from "@/lib/utils";
+import { apiFetch, apiPost, timeAgo } from "@/lib/utils";
 import type { Dream, Paginated } from "@/lib/types";
 
 const dreamTypeLabels: Record<string, string> = {
@@ -32,20 +32,50 @@ const dreamMoodStyles: Record<string, { border: string; bg: string; icon: string
 };
 
 export function DreamsPage() {
+  const queryClient = useQueryClient();
+
   const { data, isLoading } = useQuery({
     queryKey: ["dreams"],
     queryFn: () => apiFetch<Paginated<Dream>>("/api/dreams"),
+  });
+
+  const sleepMutation = useMutation({
+    mutationFn: () => apiPost("/api/trigger/sleep"),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["dreams"] }); queryClient.invalidateQueries({ queryKey: ["stats"] }); },
+  });
+
+  const questMutation = useMutation({
+    mutationFn: () => apiPost("/api/trigger/spirit-quest"),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["dreams"] }); queryClient.invalidateQueries({ queryKey: ["spirit-quests"] }); queryClient.invalidateQueries({ queryKey: ["stats"] }); },
   });
 
   if (isLoading) return <Loading />;
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">🌙 Dreams</h2>
-        <p className="text-muted-foreground mt-1">
-          Conflict resolutions and insights from the agent's subconscious
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">🌙 Dreams</h2>
+          <p className="text-muted-foreground mt-1">
+            Conflict resolutions and insights from the agent's subconscious
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => sleepMutation.mutate()}
+            disabled={sleepMutation.isPending}
+            className="text-xs px-3 py-1.5 rounded bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-colors disabled:opacity-50"
+          >
+            {sleepMutation.isPending ? "sleeping..." : "sleep cycle"}
+          </button>
+          <button
+            onClick={() => questMutation.mutate()}
+            disabled={questMutation.isPending}
+            className="text-xs px-3 py-1.5 rounded bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors disabled:opacity-50"
+          >
+            {questMutation.isPending ? "tripping..." : "spirit quest"}
+          </button>
+        </div>
       </div>
 
       {!data?.data.length ? (

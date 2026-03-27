@@ -1,9 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loading } from "@/components/Loading";
 import { Empty } from "@/components/Empty";
-import { apiFetch, timeAgo } from "@/lib/utils";
+import { apiFetch, apiPost, timeAgo } from "@/lib/utils";
 import type { Episode, Paginated } from "@/lib/types";
 
 const statusColors: Record<string, "active" | "disputed" | "stale"> = {
@@ -13,9 +13,16 @@ const statusColors: Record<string, "active" | "disputed" | "stale"> = {
 };
 
 export function EpisodesPage() {
+  const queryClient = useQueryClient();
+
   const { data, isLoading } = useQuery({
     queryKey: ["episodes"],
     queryFn: () => apiFetch<Paginated<Episode>>("/api/episodes"),
+  });
+
+  const closeMutation = useMutation({
+    mutationFn: (id: string) => apiPost(`/api/episodes/${id}/close`, { outcome: "Closed via UI" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["episodes"] }),
   });
 
   if (isLoading) return <Loading />;
@@ -34,14 +41,22 @@ export function EpisodesPage() {
           {data.data.map((ep) => {
             const lessons = JSON.parse(ep.lesson_candidates_json);
             return (
-              <Card key={ep.id}>
+              <Card key={ep.id} className="group">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <Badge variant={statusColors[ep.status] ?? "secondary"}>{ep.status}</Badge>
                       {ep.salience_score > 0.7 && <Badge variant="quest">high salience</Badge>}
                     </div>
-                    <span className="text-xs text-muted-foreground">{timeAgo(ep.started_at)}</span>
+                    <div className="flex items-center gap-2">
+                      {ep.status === "open" && (
+                        <button
+                          onClick={() => closeMutation.mutate(ep.id)}
+                          className="text-xs px-2 py-0.5 rounded bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors opacity-0 group-hover:opacity-100"
+                        >close</button>
+                      )}
+                      <span className="text-xs text-muted-foreground">{timeAgo(ep.started_at)}</span>
+                    </div>
                   </div>
                   <h3 className="font-semibold text-sm mb-1">{ep.title}</h3>
                   {ep.goal && <p className="text-xs text-muted-foreground mb-2">Goal: {ep.goal}</p>}
