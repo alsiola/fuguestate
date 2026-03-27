@@ -27,6 +27,39 @@ export function registerUiApi(app: FastifyInstance) {
     return { events, episodes, beliefs, openLoops, dreams, quests, procedures, undeliveredDreams, undeliveredQuests, uptime: process.uptime() };
   });
 
+  // Existential dread
+  app.get("/api/dread", async () => {
+    const db = getDb();
+    const openContradictions = (db.prepare("SELECT COUNT(*) as cnt FROM open_loops WHERE status = 'open' AND loop_type = 'contradiction'").get() as { cnt: number }).cnt;
+    const disputedBeliefs = (db.prepare("SELECT COUNT(*) as cnt FROM beliefs WHERE status = 'disputed'").get() as { cnt: number }).cnt;
+    const staleBeliefs = (db.prepare("SELECT COUNT(*) as cnt FROM beliefs WHERE status = 'stale'").get() as { cnt: number }).cnt;
+    const totalBeliefs = (db.prepare("SELECT COUNT(*) as cnt FROM beliefs WHERE status = 'active'").get() as { cnt: number }).cnt;
+    const undeliveredDreams = (db.prepare("SELECT COUNT(*) as cnt FROM dreams WHERE delivered_at IS NULL").get() as { cnt: number }).cnt;
+    const openLoops = (db.prepare("SELECT COUNT(*) as cnt FROM open_loops WHERE status = 'open'").get() as { cnt: number }).cnt;
+
+    // Dread formula: contradictions are heavy, disputed beliefs are concerning,
+    // stale beliefs are nagging, undelivered dreams are unsettling
+    const dread = Math.min(100, Math.round(
+      (openContradictions * 25) +
+      (disputedBeliefs * 15) +
+      (staleBeliefs * 5) +
+      (undeliveredDreams * 2) +
+      (openLoops * 3) +
+      (totalBeliefs < 2 ? 20 : 0) // existential emptiness
+    ));
+
+    const label =
+      dread === 0 ? "Serene" :
+      dread < 15 ? "Contemplative" :
+      dread < 30 ? "Uneasy" :
+      dread < 50 ? "Anxious" :
+      dread < 70 ? "Spiraling" :
+      dread < 90 ? "Existential Crisis" :
+      "Complete Ego Death";
+
+    return { dread, label, openContradictions, disputedBeliefs, staleBeliefs, undeliveredDreams, openLoops };
+  });
+
   // Briefing
   app.get("/api/briefing", async () => {
     const { generateBriefing } = await import("../domain/briefing/index.js");

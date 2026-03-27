@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loading } from "@/components/Loading";
 import { Markdown } from "@/components/Markdown";
+import { DreadMeter } from "@/components/DreadMeter";
 import { apiFetch, timeAgo } from "@/lib/utils";
 import type { Stats, TimelineItem } from "@/lib/types";
 
@@ -62,6 +63,9 @@ export function DashboardPage() {
           </Link>
         ))}
       </div>
+
+      {/* Existential Dread Meter */}
+      <DreadMeter />
 
       {/* Agent Briefing */}
       <div>
