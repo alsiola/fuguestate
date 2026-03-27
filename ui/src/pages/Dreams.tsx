@@ -13,6 +13,24 @@ const dreamTypeLabels: Record<string, string> = {
   consolidation: "Consolidation",
 };
 
+const dreamMoodStyles: Record<string, { border: string; bg: string; icon: string }> = {
+  conflict_resolution: {
+    border: "border-l-4 border-l-rose-500/60",
+    bg: "bg-gradient-to-r from-rose-500/5 to-transparent",
+    icon: "⚡",
+  },
+  insight: {
+    border: "border-l-4 border-l-cyan-400/60",
+    bg: "bg-gradient-to-r from-cyan-400/5 to-transparent",
+    icon: "✨",
+  },
+  consolidation: {
+    border: "border-l-4 border-l-amber-500/60",
+    bg: "bg-gradient-to-r from-amber-500/5 to-transparent",
+    icon: "🔥",
+  },
+};
+
 export function DreamsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["dreams"],
@@ -36,9 +54,10 @@ export function DreamsPage() {
         <div className="space-y-4">
           {data.data.map((dream) => {
             const actions = JSON.parse(dream.actions_taken_json);
+            const mood = dreamMoodStyles[dream.dream_type] ?? dreamMoodStyles.consolidation;
             return (
               <Link key={dream.id} to={dream.id}>
-                <Card className={`hover:border-purple-500/30 transition-all hover:quest-glow cursor-pointer group ${!dream.delivered_at ? "border-purple-500/20 quest-glow" : ""}`}>
+                <Card className={`${mood.border} ${mood.bg} hover:border-purple-500/30 transition-all hover:quest-glow cursor-pointer group ${!dream.delivered_at ? "border-purple-500/20 quest-glow" : ""}`}>
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
@@ -48,7 +67,7 @@ export function DreamsPage() {
                       <span className="text-xs text-muted-foreground">{timeAgo(dream.created_at)}</span>
                     </div>
                     <h3 className="font-semibold text-lg mb-2 group-hover:text-primary transition-colors">
-                      {dream.title}
+                      <span className="mr-2">{mood.icon}</span>{dream.title}
                     </h3>
                     <p className="text-sm text-muted-foreground line-clamp-3">
                       {dream.narrative_markdown.slice(0, 200)}...
