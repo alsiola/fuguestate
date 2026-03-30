@@ -345,7 +345,7 @@ async function createBeliefCandidates(): Promise<void> {
   if (candidates.length === 0) return;
 
   // Use semantic dedup against existing beliefs
-  const existingBeliefs = getActiveBeliefs(undefined, undefined, 100).map((b) => ({
+  const existingBeliefs = getActiveBeliefs(undefined, undefined, 500).map((b) => ({
     id: b.id,
     proposition: b.proposition,
   }));

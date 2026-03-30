@@ -12,9 +12,24 @@ export function createBelief(params: {
   evidenceAgainst?: string[];
 }): BeliefRow {
   const db = getDb();
-  const id = uuid();
   const now = new Date().toISOString();
 
+  // Dedup: if an active/disputed belief with the same proposition exists, update it instead
+  const existing = db
+    .prepare("SELECT * FROM beliefs WHERE LOWER(TRIM(proposition)) = LOWER(TRIM(?)) AND status IN ('active', 'disputed') LIMIT 1")
+    .get(params.proposition) as BeliefRow | undefined;
+
+  if (existing) {
+    // Boost confidence and add new evidence
+    const newConf = Math.min(1, Math.max(existing.confidence, params.confidence ?? 0.5));
+    const existingEvidence = JSON.parse(existing.evidence_for_json) as string[];
+    const newEvidence = [...existingEvidence, ...(params.evidenceFor ?? [])];
+    db.prepare("UPDATE beliefs SET confidence = ?, evidence_for_json = ?, last_validated_at = ? WHERE id = ?")
+      .run(newConf, JSON.stringify(newEvidence), now, existing.id);
+    return db.prepare("SELECT * FROM beliefs WHERE id = ?").get(existing.id) as BeliefRow;
+  }
+
+  const id = uuid();
   db.prepare(
     `INSERT INTO beliefs (id, proposition, scope_type, scope_key, confidence, evidence_for_json, evidence_against_json, first_derived_at, last_validated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`

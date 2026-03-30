@@ -44,10 +44,10 @@ async function findRepeatedFailures(): Promise<void> {
   for (const { tool_name, fail_count } of failureCounts) {
     if (!tool_name) continue;
 
-    // Check if we already have an open loop for this
+    // Check if we already have an open OR recently resolved loop for this
     const existing = db
-      .prepare("SELECT id FROM open_loops WHERE status = 'open' AND title LIKE ? LIMIT 1")
-      .get(`%Repeated failures%${tool_name}%`) as { id: string } | undefined;
+      .prepare("SELECT id, status FROM open_loops WHERE title LIKE ? AND (status = 'open' OR (status = 'resolved' AND resolved_at > datetime('now', '-7 days'))) LIMIT 1")
+      .get(`%Repeated failures%${tool_name}%`) as { id: string; status: string } | undefined;
 
     if (!existing) {
       createOpenLoop({
@@ -59,10 +59,11 @@ async function findRepeatedFailures(): Promise<void> {
         suggestedNextCheck: `Review recent ${tool_name} failures for common patterns`,
       });
       logger.info({ tool_name, fail_count }, "Created synthesis loop for repeated failures");
-    } else {
-      // Loop already exists — try to analyze and auto-resolve
+    } else if (existing.status === "open") {
+      // Loop is open — try to analyze and auto-resolve
       await analyzeFailurePatterns(tool_name, fail_count, existing.id);
     }
+    // If resolved within 7 days, skip — already handled
   }
 }
 
