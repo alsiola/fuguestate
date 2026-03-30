@@ -157,7 +157,11 @@ let synthesisTimer: NodeJS.Timeout;
 let decayTimer: NodeJS.Timeout;
 let dreamTimer: NodeJS.Timeout;
 
-function startWorkers() {
+async function startWorkers() {
+  // Backfill embeddings for existing beliefs
+  const { backfillBeliefEmbeddings } = await import("../domain/beliefEmbeddings.js");
+  backfillBeliefEmbeddings().catch((err) => logger.error({ err }, "Embedding backfill error"));
+
   // Run consolidation and dream immediately on startup
   runConsolidation().catch((err) => logger.error({ err }, "Startup consolidation error"));
   runDream().catch((err) => logger.error({ err }, "Startup dream error"));

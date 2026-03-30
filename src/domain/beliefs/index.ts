@@ -1,5 +1,6 @@
 import { v4 as uuid } from "uuid";
 import { getDb } from "../../db/client.js";
+import { embedBelief, removeBeliefEmbedding } from "../beliefEmbeddings.js";
 import type { BeliefRow, ScopeType } from "../types.js";
 
 export function createBelief(params: {
@@ -29,7 +30,12 @@ export function createBelief(params: {
     now
   );
 
-  return db.prepare("SELECT * FROM beliefs WHERE id = ?").get(id) as BeliefRow;
+  const row = db.prepare("SELECT * FROM beliefs WHERE id = ?").get(id) as BeliefRow;
+
+  // Fire-and-forget embedding
+  embedBelief(id, params.proposition).catch(() => {});
+
+  return row;
 }
 
 export function getBelief(id: string): BeliefRow | undefined {
@@ -97,6 +103,8 @@ export function retireBelief(id: string, reason: string): BeliefRow | undefined 
     now,
     id
   );
+
+  removeBeliefEmbedding(id);
 
   return getBelief(id);
 }

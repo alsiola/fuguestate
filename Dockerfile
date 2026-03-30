@@ -1,4 +1,4 @@
-FROM node:22-alpine AS ui-build
+FROM node:22-slim AS ui-build
 
 WORKDIR /ui
 COPY ui/package.json ui/package-lock.json* ./
@@ -6,7 +6,7 @@ RUN npm install
 COPY ui/ ./
 RUN npx vite build
 
-FROM node:22-alpine
+FROM node:22-slim
 
 WORKDIR /app
 

@@ -19,6 +19,7 @@ import { handleSuggestNextChecks } from "./tools/suggestNextChecks.js";
 import { handleExplainPriorDecision } from "./tools/explainPriorDecision.js";
 import { handleExtractProcedure } from "./tools/extractProcedure.js";
 import { handleGetProcedure } from "./tools/getProcedure.js";
+import { handleSemanticSearch } from "./tools/semanticSearch.js";
 
 // MCP resources
 import { handleProjectBriefingResource } from "./resources/projectBriefing.js";
@@ -216,6 +217,18 @@ export const MCP_TOOLS = [
       },
     },
   },
+  {
+    name: "memory_semantic_search",
+    description: "Semantic search across beliefs using embeddings. Use this to find beliefs relevant to a topic even when exact keywords don't match.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        query: { type: "string", description: "Natural language query to search for" },
+        top_k: { type: "number", description: "Number of results to return (default 10)" },
+      },
+      required: ["query"],
+    },
+  },
 ];
 
 // Resource definitions
@@ -325,6 +338,7 @@ async function dispatchTool(name: string, args: Record<string, unknown>, cwd?: s
     case "memory_reflect_on_task": return handleReflectOnTask(args);
     case "memory_extract_procedure": return handleExtractProcedure(args, cwd);
     case "memory_get_procedure": return handleGetProcedure(args);
+    case "memory_semantic_search": return handleSemanticSearch(args);
     default: throw new Error(`Unknown tool: ${name}`);
   }
 }

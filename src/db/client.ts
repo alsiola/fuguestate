@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import path from "node:path";
 import fs from "node:fs";
+import * as sqliteVec from "sqlite-vec";
 import { SCHEMA_SQL } from "./schema.js";
 import { logger } from "../app/logger.js";
 
@@ -27,6 +28,9 @@ export function initDb(dbPath: string): Database.Database {
   db.pragma("foreign_keys = ON");
   db.pragma("busy_timeout = 5000");
 
+  // Load sqlite-vec extension for vector search
+  sqliteVec.load(db);
+
   // Run schema
   db.exec(SCHEMA_SQL);
 
@@ -41,7 +45,13 @@ export function initDb(dbPath: string): Database.Database {
     logger.info("Migration: added drug_used column to spirit_quests");
   }
 
-  logger.info({ dbPath }, "Database initialised");
+  // Create vector tables (must be after sqlite-vec is loaded)
+  db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS belief_embeddings USING vec0(
+    belief_id TEXT PRIMARY KEY,
+    embedding float[384]
+  )`);
+
+  logger.info({ dbPath }, "Database initialised (with sqlite-vec)");
   return db;
 }
 
